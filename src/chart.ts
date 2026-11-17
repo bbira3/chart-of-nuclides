@@ -494,8 +494,10 @@ export class Chart {
     const o = this.overlay;
     // Edges
     if (o.edges.length) {
-      ctx.lineCap = 'round';
       const lw = Math.max(1.2, Math.min(4, s * 0.07));
+      // Geometry first: each arrow is one closed outline (shaft + head), so a
+      // semi-transparent arrow never shows the shaft through its own head.
+      const arrows = [];
       for (const e of o.edges) {
         const [x0, y0] = this.toScreen(e.from.n, e.from.z);
         const [x1, y1] = this.toScreen(e.to.n, e.to.z);
@@ -503,28 +505,63 @@ export class Chart {
         const len = Math.hypot(dx, dy);
         if (len < 2) continue;
         const ux = dx / len, uy = dy / len;
+        const px = -uy, py = ux; // perpendicular
         const shrink = Math.min(s * 0.34, len * 0.3);
         const ax = x0 + ux * shrink, ay = y0 + uy * shrink;
         const bx = x1 - ux * shrink, by = y1 - uy * shrink;
-        const w = lw * (0.45 + 0.55 * Math.sqrt(e.weight));
-        ctx.globalAlpha = 0.45 + 0.55 * Math.sqrt(e.weight);
-        // halo for contrast
-        ctx.strokeStyle = this.theme.bg;
-        ctx.lineWidth = w + 2.5;
-        ctx.setLineDash(e.dashed ? [4, 4] : []);
-        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-        ctx.strokeStyle = e.color;
-        ctx.lineWidth = w;
-        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-        ctx.setLineDash([]);
-        // head
-        const hs = Math.max(5, Math.min(11, s * 0.2)) * (0.7 + 0.3 * Math.sqrt(e.weight));
-        ctx.fillStyle = e.color;
+        const sw = lw * (0.45 + 0.55 * Math.sqrt(e.weight)); // shaft width
+        const avail = Math.hypot(bx - ax, by - ay);
+        const hl = Math.min(Math.max(6, Math.min(13, sw * 2.6 + 4)), avail * 0.6); // head length
+        const hh = Math.max(hl * 0.5, sw * 1.1); // head half-width
+        const cx = bx - ux * hl, cy = by - uy * hl; // head base centre
+        const hw = sw / 2;
+        const outline: [number, number][] = [
+          [ax + px * hw, ay + py * hw], [cx + px * hw, cy + py * hw], [cx + px * hh, cy + py * hh], [bx, by],
+          [cx - px * hh, cy - py * hh], [cx - px * hw, cy - py * hw], [ax - px * hw, ay - py * hw],
+        ];
+        const head: [number, number][] = [[cx + px * hh, cy + py * hh], [bx, by], [cx - px * hh, cy - py * hh]];
+        arrows.push({ e, ax, ay, bx, by, cx, cy, sw, outline, head, alpha: 0.5 + 0.5 * Math.sqrt(e.weight) });
+      }
+      const poly = (pts: [number, number][]) => {
         ctx.beginPath();
-        ctx.moveTo(bx + ux * 1, by + uy * 1);
-        ctx.lineTo(bx - ux * hs - uy * hs * 0.55, by - uy * hs + ux * hs * 0.55);
-        ctx.lineTo(bx - ux * hs + uy * hs * 0.55, by - uy * hs - ux * hs * 0.55);
-        ctx.closePath(); ctx.fill();
+        ctx.moveTo(pts[0][0], pts[0][1]);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+        ctx.closePath();
+      };
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'butt';
+      // Pass 1: background-coloured halos, so arrows read on any cell colour.
+      ctx.strokeStyle = this.theme.bg;
+      for (const a of arrows) {
+        ctx.globalAlpha = a.alpha * 0.9;
+        if (a.e.dashed) {
+          ctx.lineWidth = a.sw + 2.5;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath(); ctx.moveTo(a.ax, a.ay); ctx.lineTo(a.cx, a.cy); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.lineWidth = 2.5;
+          poly(a.head); ctx.stroke();
+        } else {
+          ctx.lineWidth = 2.5;
+          poly(a.outline); ctx.stroke();
+        }
+      }
+      // Pass 2: the arrows themselves.
+      for (const a of arrows) {
+        const e = a.e;
+        ctx.globalAlpha = a.alpha;
+        ctx.fillStyle = e.color;
+        if (e.dashed) {
+          ctx.strokeStyle = e.color;
+          ctx.lineWidth = a.sw;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath(); ctx.moveTo(a.ax, a.ay); ctx.lineTo(a.cx, a.cy); ctx.stroke();
+          ctx.setLineDash([]);
+          poly(a.head); ctx.fill();
+        } else {
+          poly(a.outline); ctx.fill();
+        }
+        const { ax, ay, bx, by } = a;
         if (e.label && s >= 26) {
           const mx = (ax + bx) / 2, my = (ay + by) / 2;
           ctx.globalAlpha = 1;
