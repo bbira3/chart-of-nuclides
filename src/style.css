@@ -387,3 +387,12 @@ table.rx td.z { color: var(--text-faint); }
 .switch::after { content: ''; position: absolute; left: 3px; top: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--text); transition: transform 0.15s; }
 .switch.on { background: var(--accent); }
 .switch.on::after { transform: translateX(14px); background: #fff; }
+.info-body { overflow: auto; min-height: 0; flex: 1 1 auto; }
+.info-body h4 {
+  margin: 16px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); font-weight: 600;
+}
+.info-body h4:first-child { margin-top: 0; }
+.info-body ul.notes { margin: 0; padding-left: 16px; color: var(--text); font-size: 12.5px; line-height: 1.5; }
+.info-body ul.notes li { margin: 3px 0; }
+.info-body ul.notes li::marker { color: var(--text-faint); }
+.info-body .keys { margin-top: 4px; }

@@ -986,7 +986,40 @@ class App {
     const ul = el('ul');
     for (const s of this.ds.meta.sources) ul.append(el('li', {}, el('a', { href: s.url, target: '_blank', rel: 'noopener' }, s.name)));
     ul.append(el('li', {}, el('a', { href: 'https://www.nndc.bnl.gov/endf-b8.0/', target: '_blank', rel: 'noopener' }, 'ENDF/B-VIII.0 neutron sublibrary (reaction cross sections)')));
-    B.append(ul, el('div', { class: 'stat' }, `${this.ds.nuclides.length} ground states · ${this.fyIndex.length} fission-yield sets · built ${this.ds.meta.built}`));
+    B.append(el('h4', {}, 'Sources'), ul, el('div', { class: 'stat' }, `${this.ds.nuclides.length} ground states · ${this.fyIndex.length} fission-yield sets · built ${this.ds.meta.built}`));
+
+    // Simplifications made to the evaluated data so the chart stays fast and readable.
+    const notes: [string, string[]][] = [
+      ['Nuclides & decay', [
+        'Ground states only. Isomers (e.g. Tc-99m, Ba-137m) are not separate cells, so chains skip isomeric steps.',
+        'Up to three decay modes per nuclide, as listed by LiveChart. The cell colour is the largest branch.',
+        'Delayed-particle branches (β⁻n, εp, …) are subtracted from their parent β⁻ or ε branch.',
+        'Missing branching ratios are filled in as the remainder (100% if there is only one mode). Totals above 100% are scaled down. Inferred branches are drawn dashed.',
+        'Half-life limits (e.g. Xe-134, > 5.8e22 y) are shown at the limit value. Very short-lived states quoted as level widths are converted to half-lives.',
+      ]],
+      ['Fission yields', [
+        'Only the evaluated energies are available (thermal, 0.5 MeV, 2 MeV, 14 MeV, spontaneous). Nothing is interpolated in between.',
+        'Yields to isomeric states are merged into the ground state. Independent yields are summed; cumulative yields use the ground-state value.',
+      ]],
+      ['Neutron activation', [
+        'Thermal cross sections combine the background with a single-level Breit–Wigner sum over resolved resonances at 0.0253 eV. This is typically within a few percent of reference values.',
+        'Fission-spectrum values average the tabulated cross sections over a U-235 Watt spectrum. Resonance contributions are left out, so (n,γ) values there are underestimates; threshold reactions are fine.',
+        'Production weight = abundance × σ (barns per target atom). It is a relative production rate: no flux, irradiation time or self-shielding.',
+        'First-generation reactions only. Products are shown as ground states (no isomer split, no further captures).',
+      ]],
+      ['Decay simulation', [
+        'Exact Bateman solution for the chain shown. Nuclides with an unknown half-life are treated as decaying in 1 µs.',
+        'Spontaneous fission and daughters that are not on the chart count as losses. Fission products are not followed.',
+        'The fission-pulse simulation starts from the independent yields of one fission and has no neutron capture during decay.',
+      ]],
+    ];
+    for (const [title, items] of notes) {
+      const list = el('ul', { class: 'notes' });
+      for (const t of items) list.append(el('li', {}, t));
+      B.append(el('h4', {}, title), list);
+    }
+
+    B.append(el('h4', {}, 'Keys'));
     const keys = el('div', { class: 'keys' });
     for (const [k, v] of [['/', 'Search'], ['1 2 3', 'Decay · Fission · Activation'], ['Click', 'Pin details'], ['Shift + scroll', 'Travel along the valley of stability'], ['← ↑ → ↓', 'Step between neighbours'], ['s', 'Simulate decay'], ['0', 'Fit'], ['+ −', 'Zoom'], ['t', 'Next theme'], ['Esc', 'Back out one level'], ['Shift-click legend', 'Solo category']]) {
       keys.append(el('kbd', {}, k), el('span', {}, v));
