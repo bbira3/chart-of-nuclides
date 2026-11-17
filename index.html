@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Chart of Nuclides</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='3' y='17' width='7' height='7' rx='1.5' fill='%234a8fe7'/><rect x='12' y='17' width='7' height='7' rx='1.5' fill='%23eef0f3'/><rect x='12' y='8' width='7' height='7' rx='1.5' fill='%23e8577e'/><rect x='21' y='8' width='7' height='7' rx='1.5' fill='%23f5c73b'/></svg>" />
+    <script>
+      try { const t = localStorage.getItem('con.theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
+    </script>
+  </head>
+  <body>
+    <div id="app">
+      <header class="bar">
+        <div class="brand"><span class="logo"></span>Nuclides</div>
+        <div class="search">
+          <svg viewBox="0 0 20 20" class="ico"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M13 13l4 4"/></svg>
+          <input id="search" type="search" placeholder="Search  Cs-137 · 235U · Pb" autocomplete="off" spellcheck="false" />
+          <kbd>/</kbd>
+          <ul id="results" class="results" role="listbox"></ul>
+        </div>
+        <div class="seg" id="modeSeg" role="tablist">
+          <button data-mode="chart" class="on">Decay</button>
+          <button data-mode="fy">Fission</button>
+          <button data-mode="act">Activation</button>
+        </div>
+        <div class="spacer"></div>
+        <label class="select">
+          <span>Color</span>
+          <select id="colorBy"></select>
+        </label>
+        <button class="icon" id="btnFit" title="Fit chart (0)"><svg viewBox="0 0 20 20"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4"/></svg></button>
+        <button class="icon" id="btnPng" title="Save PNG"><svg viewBox="0 0 20 20"><path d="M10 3v10M6 9l4 4 4-4M4 16h12"/></svg></button>
+        <button class="icon" id="btnTheme" title="Theme (t)"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="6"/><path d="M10 4a6 6 0 0 1 0 12z" class="fill"/></svg></button>
+        <button class="icon" id="btnInfo" title="Data sources"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6.2v.1"/></svg></button>
+      </header>
+
+      <main id="stage">
+        <canvas id="chart"></canvas>
+        <div class="left-col">
+          <div id="legend" class="legend"></div>
+          <aside id="modePanel" class="panel mode-panel" hidden></aside>
+        </div>
+        <canvas id="minimap" class="minimap"></canvas>
+        <aside id="detail" class="panel detail" hidden></aside>
+        <div id="tip" class="tip" hidden></div>
+        <div id="loading" class="loading"><div class="spinner"></div></div>
+      </main>
+    </div>
+
+    <div id="sim" class="modal" hidden>
+      <div class="modal-card">
+        <header>
+          <h2 id="simTitle">Decay</h2>
+          <div class="seg small" id="simQty">
+            <button data-q="activity" class="on">Activity</button>
+            <button data-q="atoms">Atoms</button>
+          </div>
+          <div class="spacer"></div>
+          <button class="icon" id="simClose" title="Close (Esc)"><svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></svg></button>
+        </header>
+        <div class="sim-body">
+          <div class="sim-plot"><canvas id="simCanvas"></canvas></div>
+          <div class="sim-side">
+            <div class="sim-time" id="simTime"></div>
+            <ol id="simLegend" class="sim-legend"></ol>
+          </div>
+        </div>
+        <footer class="sim-range">
+          <label>From <input type="range" id="simT0" min="-9" max="18" step="0.1" /><output id="simT0o"></output></label>
+          <label>To <input type="range" id="simT1" min="-9" max="18" step="0.1" /><output id="simT1o"></output></label>
+        </footer>
+      </div>
+    </div>
+
+    <div id="info" class="modal" hidden>
+      <div class="modal-card narrow">
+        <header><h2>Data</h2><div class="spacer"></div><button class="icon" data-close><svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></svg></button></header>
+        <div class="info-body" id="infoBody"></div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
