@@ -11,7 +11,7 @@ import { SimModal } from './ui/sim';
 import { Appearance } from './ui/appearance';
 import { $, el, label, toast } from './ui/dom';
 
-type Mode = 'chart' | 'fy' | 'act';
+type Mode = 'explore' | 'chart' | 'fy' | 'act';
 
 interface State {
   mode: Mode;
@@ -27,7 +27,7 @@ interface State {
 }
 
 const DEFAULTS: State = {
-  mode: 'chart', color: 'decay', baseColor: 'decay',
+  mode: 'explore', color: 'decay', baseColor: 'decay',
   fySys: 'U235_t', fyKind: 'cum', fyThr: -5, fyFilter: 'dim',
   actZ: 27, actIso: null, actSp: 0,
 };
@@ -50,6 +50,8 @@ class App {
   catOff = new Set<string>();
   pinned: Nuclide | null = null;
   listHover: Nuclide | null = null;
+  /** Explore mode: the last nuclide hovered, shown in the details panel. */
+  explored: Nuclide | null = null;
   sim = new SimModal();
   look = new Appearance($('#btnTheme'));
   get dark() { return this.look.theme.dark; }
@@ -222,7 +224,8 @@ class App {
     // Decay chain to show. A clicked (pinned) nuclide locks its chain on screen,
     // so hovering elsewhere doesn't replace it. With nothing pinned, hovering
     // previews chains, except in activation mode, where chains appear only on click.
-    const focus = this.pinned ?? (s.mode === 'act' ? null : (this.listHover ?? this.chart.hover));
+    // Explore mode never draws chains: it is for reading the details panel.
+    const focus = s.mode === 'explore' ? null : this.pinned ?? (s.mode === 'act' ? null : (this.listHover ?? this.chart.hover));
     if (focus && focus.branches.length) {
       const ch = decayChain(focus);
       const a = A();
@@ -260,7 +263,7 @@ class App {
     s.mode = mode;
     document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('on', (b as HTMLElement).dataset.mode === mode));
     if (user && prev !== mode) {
-      if (prev === 'chart' || !['fy', 'act'].includes(s.color)) s.baseColor = s.color;
+      if (prev === 'chart' || prev === 'explore' || !['fy', 'act'].includes(s.color)) s.baseColor = s.color;
       if (mode === 'fy') s.color = 'fy';
       else if (mode === 'act') s.color = 'act';
       else s.color = ['fy', 'act'].includes(s.color) ? s.baseColor : s.color;
@@ -270,7 +273,10 @@ class App {
     }
     if (mode === 'fy') await this.ensureFy();
     if (mode === 'act') await this.ensureAct();
+    if (mode !== 'explore') this.explored = null;
+    this.tip.hidden = true;
     this.renderPanel();
+    this.renderDetail();
     this.updateInsets();
     this.saveState();
     if (user) {
@@ -283,7 +289,7 @@ class App {
   /** Tell the chart which parts of the screen are covered by panels. */
   updateInsets() {
     const panelOpen = !this.panel.hidden;
-    this.chart.insets = { l: panelOpen ? 324 : 0, r: this.pinned ? 352 : 0, t: 0, b: 0 };
+    this.chart.insets = { l: panelOpen ? 324 : 0, r: this.detailNuclide ? 352 : 0, t: 0, b: 0 };
   }
 
   /** Frame a set of nuclides. */
@@ -312,10 +318,17 @@ class App {
   private onHover(nu: Nuclide | null, x: number, y: number) {
     if (nu !== this.lastHover) {
       this.lastHover = nu;
+      if (this.state.mode === 'explore' && nu && !this.pinned && nu !== this.explored) {
+        const wasOpen = !!this.explored;
+        this.explored = nu;
+        this.renderDetail();
+        if (!wasOpen) this.updateInsets();
+      }
       this.refocus();
       this.renderLegendMarker(nu);
     }
-    if (!nu) { this.tip.hidden = true; return; }
+    // Explore mode shows everything in the details panel, so no tooltip.
+    if (!nu || this.state.mode === 'explore') { this.tip.hidden = true; return; }
     this.renderTip(nu);
     this.placeTip(x, y);
   }
@@ -324,6 +337,7 @@ class App {
   pin(nu: Nuclide | null, fly = false) {
     this.pinned = nu;
     this.chart.pinned = nu;
+    if (nu && this.state.mode === 'explore') this.explored = nu;
     this.renderDetail();
     this.updateInsets();
     if (nu && fly) this.chart.focusNuclide(nu);
@@ -521,7 +535,7 @@ class App {
     const P = this.panel;
     const s = this.state;
     P.innerHTML = '';
-    if (s.mode === 'chart') { P.hidden = true; return; }
+    if (s.mode === 'chart' || s.mode === 'explore') { P.hidden = true; return; }
     P.hidden = false;
     if (s.mode === 'fy') this.renderFyPanel(P);
     else this.renderActPanel(P);
@@ -688,8 +702,13 @@ class App {
   }
 
   // -------------------------------------------------------------- detail
+  /** The nuclide in the details panel: the pinned one, or the hovered one in explore mode. */
+  get detailNuclide(): Nuclide | null {
+    return this.pinned ?? (this.state.mode === 'explore' ? this.explored : null);
+  }
+
   renderDetail() {
-    const nu = this.pinned;
+    const nu = this.detailNuclide;
     const D = this.detail;
     document.body.classList.toggle('detail-open', !!nu);
     if (!nu) { D.hidden = true; this.drawMiniViewport(); return; }
@@ -698,7 +717,7 @@ class App {
     const col = this.coloring.colors[nu.idx];
     const fg = luminance(col) > 0.42 ? '#111' : '#fff';
     const close = el('button', { class: 'icon', title: 'Close (Esc)' }, svgIcon('M5 5l10 10M15 5L5 15'));
-    close.addEventListener('click', () => this.pin(null));
+    close.addEventListener('click', () => { this.explored = null; this.pin(null); });
     D.append(el('div', { class: 'head' },
       el('div', { class: 'badge', style: `background:${css(col)};color:${fg}` }, el('sup', {}, nu.a), nu.z === 0 ? 'n' : nu.s),
       el('div', { class: 't' }, el('b', {}, nu.name), el('span', {}, `Z ${nu.z} · N ${nu.n} · A ${nu.a}`)),
@@ -937,9 +956,10 @@ class App {
       else if (e.key === 't' || e.key === 'T') this.look.cycleTheme(e.shiftKey ? -1 : 1);
       else if (e.key === 'f' && this.pinned) this.chart.focusNuclide(this.pinned);
       else if (e.key === 's' && this.pinned?.branches.length) this.openChainSim(this.pinned);
-      else if (e.key === '1') this.setMode('chart');
-      else if (e.key === '2') this.setMode('fy');
-      else if (e.key === '3') this.setMode('act');
+      else if (e.key === '1') this.setMode('explore');
+      else if (e.key === '2') this.setMode('chart');
+      else if (e.key === '3') this.setMode('fy');
+      else if (e.key === '4') this.setMode('act');
       else if (e.key.startsWith('Arrow')) {
         const p = this.pinned;
         if (!p) return;
@@ -978,7 +998,8 @@ class App {
     if (this.sim.isOpen) { this.sim.close(); return; }
     if (this.pinned) { this.pin(null); return; }
     if (this.catOff.size) { this.catOff.clear(); this.renderLegend(); this.refocus(); return; }
-    if (this.state.mode !== 'chart') { this.setMode('chart'); return; }
+    if (this.state.mode !== 'explore') { this.setMode('explore'); return; }
+    if (this.explored) { this.explored = null; this.renderDetail(); this.updateInsets(); return; }
     if (!this.chart.isFit()) { this.chart.fit(); return; }
   }
 
@@ -1023,7 +1044,7 @@ class App {
 
     B.append(el('h4', {}, 'Keys'));
     const keys = el('div', { class: 'keys' });
-    for (const [k, v] of [['/', 'Search'], ['1 2 3', 'Decay · Fission · Activation'], ['Click', 'Lock chain & show details'], ['Click empty', 'Unlock'], ['Shift + scroll', 'Travel along the valley of stability'], ['← ↑ → ↓', 'Step between neighbours'], ['s', 'Simulate decay'], ['0', 'Fit'], ['+ −', 'Zoom'], ['t', 'Next theme'], ['Esc', 'Back out one level'], ['Shift-click legend', 'Solo category']]) {
+    for (const [k, v] of [['/', 'Search'], ['1 2 3 4', 'Explore · Decay · Fission · Activation'], ['Click', 'Lock chain & details'], ['Click empty', 'Unlock'], ['Shift + scroll', 'Travel along the valley of stability'], ['← ↑ → ↓', 'Step between neighbours'], ['s', 'Simulate decay'], ['0', 'Fit'], ['+ −', 'Zoom'], ['t', 'Next theme'], ['Esc', 'Back out one level'], ['Shift-click legend', 'Solo category']]) {
       keys.append(el('kbd', {}, k), el('span', {}, v));
     }
     B.append(keys);

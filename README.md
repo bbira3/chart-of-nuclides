@@ -2,6 +2,7 @@
 
 An interactive, canvas-rendered chart of the nuclides for exploration. It covers all 3,386 known ground states.
 
+- **Explore** (the default): hover any nuclide to see its full details in the side panel, with no chain overlay. Click to keep the panel on that nuclide.
 - **Decay**: hover any nuclide to see its full downstream decay chain, with branching ratios on the arrows. Click to pin it and open the details panel. Arrow keys step between neighbouring nuclides.
 - **Fission**: choose a fissioning system (61 sets: thermal, fast, 14 MeV and spontaneous) and switch between cumulative and independent yields. A minimum-yield slider dims or hides everything below it. *Decay fission products* simulates the decay heat curve of a fission pulse.
 - **Activation**: choose an element (natural isotopic mix) or a single isotope, and a neutron spectrum: thermal, U-235 fission spectrum, or 14 MeV. The chart shows every (n,γ), (n,2n), (n,p), (n,α)… product, weighted by abundance × σ.
@@ -40,4 +41,4 @@ npm run data       # python scripts/build_data.py [--refresh]
 
 ## Keys
 
-`/` search · `1 2 3` modes · Shift+scroll travels along the valley of stability · arrows step · `s` simulate · `f` focus · `0` fit · `+ −` zoom · `t` next theme · `Esc` backs out one level (dialog → pinned nuclide → mode → full view)
+`/` search · `1 2 3 4` modes · Shift+scroll travels along the valley of stability · arrows step · `s` simulate · `f` focus · `0` fit · `+ −` zoom · `t` next theme · `Esc` backs out one level (dialog → pinned nuclide → back to Explore → full view)
