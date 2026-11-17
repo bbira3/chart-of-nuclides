@@ -219,9 +219,10 @@ class App {
       }
     }
 
-    // Decay chain of the hovered (or pinned) nuclide. In activation mode only a
-    // pinned (clicked) nuclide shows its chain, so hovering stays calm.
-    const focus = s.mode === 'act' ? this.pinned : (this.listHover ?? this.chart.hover ?? this.pinned);
+    // Decay chain to show. A clicked (pinned) nuclide locks its chain on screen,
+    // so hovering elsewhere doesn't replace it. With nothing pinned, hovering
+    // previews chains, except in activation mode, where chains appear only on click.
+    const focus = this.pinned ?? (s.mode === 'act' ? null : (this.listHover ?? this.chart.hover));
     if (focus && focus.branches.length) {
       const ch = decayChain(focus);
       const a = A();
@@ -240,7 +241,8 @@ class App {
       }
     }
 
-    if (s.mode === 'act' && this.listHover) overlay.rings.push({ nu: this.listHover, color: this.tv('--accent'), width: 3 });
+    // A list row or chip being hovered without showing its chain still gets a ring.
+    if (this.listHover && this.listHover !== focus) overlay.rings.push({ nu: this.listHover, color: this.tv('--accent'), width: 3 });
 
     this.chart.setFocus(alpha, hidden);
     this.chart.setOverlay(overlay);
@@ -1021,7 +1023,7 @@ class App {
 
     B.append(el('h4', {}, 'Keys'));
     const keys = el('div', { class: 'keys' });
-    for (const [k, v] of [['/', 'Search'], ['1 2 3', 'Decay · Fission · Activation'], ['Click', 'Pin details'], ['Shift + scroll', 'Travel along the valley of stability'], ['← ↑ → ↓', 'Step between neighbours'], ['s', 'Simulate decay'], ['0', 'Fit'], ['+ −', 'Zoom'], ['t', 'Next theme'], ['Esc', 'Back out one level'], ['Shift-click legend', 'Solo category']]) {
+    for (const [k, v] of [['/', 'Search'], ['1 2 3', 'Decay · Fission · Activation'], ['Click', 'Lock chain & show details'], ['Click empty', 'Unlock'], ['Shift + scroll', 'Travel along the valley of stability'], ['← ↑ → ↓', 'Step between neighbours'], ['s', 'Simulate decay'], ['0', 'Fit'], ['+ −', 'Zoom'], ['t', 'Next theme'], ['Esc', 'Back out one level'], ['Shift-click legend', 'Solo category']]) {
       keys.append(el('kbd', {}, k), el('span', {}, v));
     }
     B.append(keys);
