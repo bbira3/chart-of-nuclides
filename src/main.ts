@@ -298,7 +298,8 @@ class App {
   /** Tell the chart which parts of the screen are covered by panels. */
   updateInsets() {
     const panelOpen = !this.panel.hidden;
-    this.chart.insets = { l: panelOpen ? 324 : 0, r: this.detailNuclide ? 352 : 0, t: 0, b: 0 };
+    const wide = panelOpen && this.state.mode === 'act';
+    this.chart.insets = { l: panelOpen ? (wide ? 476 : 324) : 0, r: this.detailNuclide ? 352 : 0, t: 0, b: 0 };
   }
 
   /** Frame a set of nuclides. */
@@ -570,6 +571,8 @@ class App {
     const P = this.panel;
     const s = this.state;
     P.innerHTML = '';
+    // The activation panel is wider so the periodic-table picker is easy to read.
+    $('.left-col').classList.toggle('wide', s.mode === 'act');
     if (s.mode === 'chart' || s.mode === 'explore') { P.hidden = true; return; }
     P.hidden = false;
     if (s.mode === 'fy') this.renderFyPanel(P);
@@ -691,6 +694,22 @@ class App {
       const nu = this.ds.byId(k);
       if (nu?.natural) withData.add(nu.z);
     }
+    // Caption under the table: the hovered (or selected) element and its natural isotopes.
+    const cap = el('div', { class: 'ptcap' });
+    const showCap = (z: number | null) => {
+      cap.innerHTML = '';
+      if (z == null) {
+        const t = s.actIso ? this.ds.byId(s.actIso) : null;
+        if (t) cap.append(el('b', {}, t.name), ' · single isotope');
+        return;
+      }
+      const isos = naturalTargets(this.ds, z).sort((a, b) => b.frac - a.frac);
+      cap.append(el('b', {}, this.ds.meta.elementNames[z]), ` · Z ${z}`);
+      if (!isos.length) { cap.append(' · no natural isotopes'); return; }
+      cap.append(el('br'));
+      isos.slice(0, 5).forEach((t, i) => cap.append(i ? ', ' : '', el('span', { class: 'iso' }, `${t.nu.id} ${fmtNum(t.frac * 100, 3)}%`)));
+      if (isos.length > 5) cap.append(`, +${isos.length - 5} more`);
+    };
     const pt = el('div', { class: 'ptable' });
     const cells: (number | null)[] = new Array(18 * 10).fill(null);
     for (let z = 1; z <= 118; z++) { const [r, c] = ptPos(z); cells[r * 18 + c] = z; }
@@ -702,6 +721,8 @@ class App {
         title: this.ds.meta.elementNames[z], disabled: !withData.has(z),
       }, sym) as HTMLButtonElement;
       b.addEventListener('click', () => { s.actZ = z; s.actIso = null; this.afterActChange(); });
+      b.addEventListener('pointerenter', () => showCap(z));
+      b.addEventListener('pointerleave', () => showCap(s.actIso ? null : s.actZ));
       pt.append(b);
     }
     const tgtLabel = s.actIso ? this.ds.byId(s.actIso) : null;
@@ -711,7 +732,8 @@ class App {
       chip.addEventListener('click', () => { s.actIso = null; s.actZ = tgtLabel.z; this.afterActChange(); });
       head.append(el('div', {}, chip));
     } else head.append(el('div', {}, el('b', {}, `${this.ds.meta.elementNames[s.actZ]}`), el('span', { class: 'stat' }, ' · natural')));
-    head.append(pt);
+    head.append(pt, cap);
+    showCap(s.actIso ? null : s.actZ);
     P.append(head);
     const spSeg = segment(SPECTRA.map((l, i) => [String(i), l] as [string, string]), String(s.actSp), v => { s.actSp = +v as Spectrum; this.afterActChange(); });
     P.append(el('div', { class: 'field' }, el('span', {}, 'Neutrons', q('spectra')), spSeg));
