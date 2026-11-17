@@ -84,30 +84,94 @@ export const SPECTRAL = stops(['#5e4fa2', '#3288bd', '#66c2a5', '#abdda4', '#e6f
 export const RDBU = stops(['#2166ac', '#4393c3', '#92c5de', '#d1e5f0', '#f2f2f2', '#fddbc7', '#f4a582', '#d6604d', '#b2182b']);
 export const PUOR = stops(['#2d004b', '#542788', '#8073ac', '#b2abd2', '#e8e8e8', '#fee0b6', '#fdb863', '#e08214', '#b35806']);
 
+export const INFERNO = stops(['#000004', '#1b0c41', '#4a0c6b', '#781c6d', '#a52c60', '#cf4446', '#ed6925', '#fb9b06', '#f7d13d', '#fcffa4']);
+export const TURBO = stops(['#30123b', '#4145ab', '#4675ed', '#39a2fc', '#1bcfd4', '#24eca6', '#61fc6c', '#a4fc3b', '#d1e834', '#f3c63a', '#fe9b2d', '#f36315', '#d93806', '#b11901', '#7a0402']);
+export const CUBEHELIX = stops(['#000000', '#1a1530', '#163d4e', '#1f6642', '#54792f', '#a07949', '#d07e93', '#cf9cda', '#c1caf3', '#d2eeef', '#ffffff']);
+export const ICE = stops(['#04082e', '#0b2a6b', '#1660a8', '#2f97c9', '#7cc8e0', '#d4f1f7']);
+export const FIRE = stops(['#1a0505', '#4a0b07', '#8a1405', '#d83a00', '#ff8c00', '#ffd34d', '#fffbe0']);
+export const AURORA = stops(['#0b1d3a', '#164a6b', '#1b7f7a', '#38b26d', '#a6d854', '#f2e86d', '#f7b6d2', '#c77dff']);
+export const SUNSET = stops(['#2d1b4e', '#5b2a86', '#9a348e', '#da627d', '#f78e69', '#fdc46e', '#fff1b5']);
+export const BRBG = stops(['#543005', '#8c510a', '#bf812d', '#dfc27d', '#f6e8c3', '#f2f2f2', '#c7eae5', '#80cdc1', '#35978f', '#01665e', '#003c30']);
+export const COOLWARM = stops(['#3b4cc0', '#6688ee', '#9abbff', '#c9d7f0', '#ededed', '#f2cbb7', '#f7a889', '#e26952', '#b40426']);
+export const PIYG = stops(['#8e0152', '#c51b7d', '#de77ae', '#f1b6da', '#f7f7f7', '#b8e186', '#7fbc41', '#4d9221', '#276419']);
+export const ICEFIRE = stops(['#3fe0ff', '#2a8fd6', '#24479b', '#1b1d3a', '#111111', '#3d1420', '#8e1f2f', '#e24a33', '#ffb35c']);
+
+// ------------------------------------------------------------ gradient choices
+export interface GradientChoice { id: string; label: string; scale: Scale | null }
+export const SEQ_GRADIENTS: GradientChoice[] = [
+  { id: 'auto', label: 'Per attribute', scale: null },
+  { id: 'viridis', label: 'Viridis', scale: VIRIDIS },
+  { id: 'magma', label: 'Magma', scale: MAGMA },
+  { id: 'inferno', label: 'Inferno', scale: INFERNO },
+  { id: 'plasma', label: 'Plasma', scale: PLASMA },
+  { id: 'cividis', label: 'Cividis', scale: CIVIDIS },
+  { id: 'turbo', label: 'Turbo', scale: TURBO },
+  { id: 'spectral', label: 'Spectral', scale: SPECTRAL },
+  { id: 'cubehelix', label: 'Cubehelix', scale: CUBEHELIX },
+  { id: 'aurora', label: 'Aurora', scale: AURORA },
+  { id: 'sunset', label: 'Sunset', scale: SUNSET },
+  { id: 'ice', label: 'Ice', scale: ICE },
+  { id: 'fire', label: 'Fire', scale: FIRE },
+];
+export const DIV_GRADIENTS: GradientChoice[] = [
+  { id: 'auto', label: 'Per attribute', scale: null },
+  { id: 'rdbu', label: 'Red–Blue', scale: RDBU },
+  { id: 'coolwarm', label: 'Cool–Warm', scale: COOLWARM },
+  { id: 'puor', label: 'Purple–Orange', scale: PUOR },
+  { id: 'brbg', label: 'Brown–Teal', scale: BRBG },
+  { id: 'piyg', label: 'Pink–Green', scale: PIYG },
+  { id: 'icefire', label: 'Ice–Fire', scale: ICEFIRE },
+];
+let seqOverride: Scale | null = null;
+let divOverride: Scale | null = null;
+export function setGradients(seq: string, div: string) {
+  seqOverride = SEQ_GRADIENTS.find(g => g.id === seq)?.scale ?? null;
+  divOverride = DIV_GRADIENTS.find(g => g.id === div)?.scale ?? null;
+}
+/** The scale actually used for a continuous mode, honouring the user's gradient choice. */
+export function scaleFor(mode: ContinuousMode): Scale {
+  return (mode.kind === 'div' ? divOverride : seqOverride) ?? mode.scale;
+}
+
 // ------------------------------------------------------------ decay colours
-export const FAMILY: Record<string, { label: string; color: string; dark?: string }> = {
-  S: { label: 'Stable', color: '#1b1d22', dark: '#eef0f3' },
-  'B-': { label: 'β⁻', color: '#4a8fe7' },
-  EC: { label: 'β⁺ / EC', color: '#e8577e' },
-  A: { label: 'α', color: '#f5c73b' },
-  SF: { label: 'Spontaneous fission', color: '#3fbf73' },
-  P: { label: 'Proton emission', color: '#f39237' },
-  N: { label: 'Neutron emission', color: '#a07ae0' },
-  IT: { label: 'Isomeric transition', color: '#aab4bf' },
-  CL: { label: 'Cluster decay', color: '#2ec4c4' },
-  U: { label: 'Unknown', color: '#c5c9cf', dark: '#4b5058' },
+export const FAMILY_LABELS: Record<string, string> = {
+  S: 'Stable', 'B-': 'β⁻', EC: 'β⁺ / EC', A: 'α', SF: 'Spontaneous fission', P: 'Proton emission',
+  N: 'Neutron emission', IT: 'Isomeric transition', CL: 'Cluster decay', U: 'Unknown',
 };
-export const familyColor = (f: string, dark: boolean): RGB => {
-  const e = FAMILY[f] ?? FAMILY.U;
-  return hex(dark && e.dark ? e.dark : e.color);
+
+export interface DecayPalette { id: string; label: string; c: Record<string, string> }
+export const DECAY_PALETTES: DecayPalette[] = [
+  { id: 'modern', label: 'Modern', c: { 'B-': '#4a8fe7', EC: '#e8577e', A: '#f5c73b', SF: '#3fbf73', P: '#f39237', N: '#a07ae0', IT: '#aab4bf', CL: '#2ec4c4' } },
+  { id: 'classic', label: 'Karlsruhe', c: { 'B-': '#2f6fdf', EC: '#e3262f', A: '#ffe014', SF: '#1fa64a', P: '#ff8a00', N: '#7fd3f7', IT: '#e6e6e6', CL: '#a6409c' } },
+  { id: 'okabe', label: 'Colorblind safe', c: { 'B-': '#0072b2', EC: '#d55e00', A: '#f0e442', SF: '#009e73', P: '#e69f00', N: '#56b4e9', IT: '#bbbbbb', CL: '#cc79a7' } },
+  { id: 'pastel', label: 'Pastel', c: { 'B-': '#9cc3f5', EC: '#f4a6b8', A: '#fbe29a', SF: '#a8e0b8', P: '#f9c597', N: '#cdb8f3', IT: '#d8dde3', CL: '#9ee3e0' } },
+  { id: 'neon', label: 'Neon', c: { 'B-': '#00e5ff', EC: '#ff2fa0', A: '#ffe600', SF: '#39ff14', P: '#ff7b00', N: '#b14dff', IT: '#c8c8c8', CL: '#00ffc8' } },
+  { id: 'earth', label: 'Earth', c: { 'B-': '#3f6f8f', EC: '#b5523b', A: '#d9a441', SF: '#5f8f4e', P: '#c97b3a', N: '#7b6aa0', IT: '#a69f94', CL: '#4f9a94' } },
+  { id: 'jewel', label: 'Jewel', c: { 'B-': '#1f4fd1', EC: '#c2185b', A: '#f2a900', SF: '#00897b', P: '#e65100', N: '#6a1b9a', IT: '#90a4ae', CL: '#00acc1' } },
+];
+let decayPal = DECAY_PALETTES[0];
+export function setDecayPalette(id: string) {
+  decayPal = DECAY_PALETTES.find(p => p.id === id) ?? DECAY_PALETTES[0];
+}
+
+/** Theme-dependent cell colours: stable, unknown decay mode and "no data". */
+let themeCells = { stable: '#eef0f3', unknown: '#4b5058', missing: '#3a3e46' };
+export function setThemeCells(c: { stable: string; unknown: string; missing: string }) {
+  themeCells = c;
+}
+
+export const familyColor = (f: string, _dark?: boolean): RGB => {
+  if (f === 'S') return hex(themeCells.stable);
+  if (f === 'U') return hex(themeCells.unknown);
+  return hex(decayPal.c[f] ?? themeCells.unknown);
 };
+export const paletteColor = (p: DecayPalette, f: string) => p.c[f] ?? themeCells.unknown;
 
 const stableSpecial = {
   label: 'Stable',
-  color: (dark: boolean) => familyColor('S', dark),
+  color: (_dark: boolean) => familyColor('S'),
 };
-const missingColor = (dark: boolean): RGB => (dark ? [58, 62, 70] : [214, 217, 222]);
-export { missingColor };
+export const missingColor = (_dark?: boolean): RGB => hex(themeCells.missing);
 
 // ------------------------------------------------------------ formatting
 export function fmtNum(v: number, digits = 3): string {
@@ -136,8 +200,8 @@ export const COLOR_MODES: ColorMode[] = [
   {
     id: 'decay', label: 'Decay mode', group: 'Decay', kind: 'cat',
     description: 'Dominant ground-state decay mode (ENSDF).',
-    categories: dark => ['S', 'B-', 'EC', 'A', 'SF', 'P', 'N', 'CL', 'IT', 'U'].map(k => ({
-      key: k, label: FAMILY[k].label, color: familyColor(k, dark),
+    categories: () => ['S', 'B-', 'EC', 'A', 'SF', 'P', 'N', 'CL', 'IT', 'U'].map(k => ({
+      key: k, label: FAMILY_LABELS[k], color: familyColor(k),
     })),
     value: nu => nu.primary,
   },
@@ -290,6 +354,7 @@ export function computeColoring(ds: Dataset, mode: ColorMode, ctx: ColorContext)
   }
   const [d0, d1] = domain;
   const c = mode.center;
+  const scale = scaleFor(mode);
   for (const nu of ds.nuclides) {
     const v = raw[nu.idx];
     values[nu.idx] = v;
@@ -300,7 +365,7 @@ export function computeColoring(ds: Dataset, mode: ColorMode, ctx: ColorContext)
     if (mode.kind === 'div' && c != null) {
       t = v < c ? 0.5 - 0.5 * Math.min(1, (c - v) / (c - d0)) : 0.5 + 0.5 * Math.min(1, (v - c) / (d1 - c));
     } else t = (v - d0) / (d1 - d0);
-    colors[nu.idx] = mode.scale(t);
+    colors[nu.idx] = scale(t);
   }
   return { mode, colors, values, domain };
 }

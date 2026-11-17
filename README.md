@@ -7,6 +7,7 @@ An interactive, canvas-rendered chart of the nuclides for exploration. It covers
 - **Activation**: choose an element (natural isotopic mix) or a single isotope, and a neutron spectrum: thermal, U-235 fission spectrum, or 14 MeV. The chart shows every (n,γ), (n,2n), (n,p), (n,α)… product, weighted by abundance × σ.
 - **Color by**: decay mode, half-life, Q-values, binding energy, mass excess, separation energies, spin, parity, moments, charge radius, N/Z, abundance, discovery year, fission yield or activation production. Click legend entries to toggle them; shift-click to solo one.
 - **Simulate decay**: an analytic Bateman solution, run in a Web Worker and plotted on log-log axes.
+- **Themes and colors** (palette button): 9 UI themes, 7 decay-mode palettes (including a colorblind-safe one), and selectable sequential and diverging gradients.
 
 ## Data sources
 
@@ -39,4 +40,4 @@ npm run data       # python scripts/build_data.py [--refresh]
 
 ## Keys
 
-`/` search · `1 2 3` modes · arrows step · `s` simulate · `f` focus · `0` fit · `+ −` zoom · `t` theme · `Esc` close
+`/` search · `1 2 3` modes · Shift+scroll travels along the valley of stability · arrows step · `s` simulate · `f` focus · `0` fit · `+ −` zoom · `t` next theme · `Esc` backs out one level (dialog → pinned nuclide → mode → full view)

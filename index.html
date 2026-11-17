@@ -6,7 +6,14 @@
     <title>Chart of Nuclides</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='3' y='17' width='7' height='7' rx='1.5' fill='%234a8fe7'/><rect x='12' y='17' width='7' height='7' rx='1.5' fill='%23eef0f3'/><rect x='12' y='8' width='7' height='7' rx='1.5' fill='%23e8577e'/><rect x='21' y='8' width='7' height='7' rx='1.5' fill='%23f5c73b'/></svg>" />
     <script>
-      try { const t = localStorage.getItem('con.theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
+      try {
+        const t = JSON.parse(localStorage.getItem('con.themeVars') || 'null');
+        if (t) {
+          const r = document.documentElement;
+          for (const k in t.vars) r.style.setProperty(k, t.vars[k]);
+          r.dataset.theme = t.dark ? 'dark' : 'light';
+        }
+      } catch {}
     </script>
   </head>
   <body>
@@ -31,7 +38,7 @@
         </label>
         <button class="icon" id="btnFit" title="Fit chart (0)"><svg viewBox="0 0 20 20"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4"/></svg></button>
         <button class="icon" id="btnPng" title="Save PNG"><svg viewBox="0 0 20 20"><path d="M10 3v10M6 9l4 4 4-4M4 16h12"/></svg></button>
-        <button class="icon" id="btnTheme" title="Theme (t)"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="6"/><path d="M10 4a6 6 0 0 1 0 12z" class="fill"/></svg></button>
+        <button class="icon" id="btnTheme" title="Themes &amp; colors (t cycles themes)"><svg viewBox="0 0 20 20"><path d="M10 3a7 7 0 1 0 0 14c1.1 0 1.6-.8 1.6-1.6 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.7-1.6 1.6-1.6H14a3 3 0 0 0 3-3C17 5.6 13.9 3 10 3z"/><circle cx="6.5" cy="9.5" r=".9" class="fill"/><circle cx="8.5" cy="6.3" r=".9" class="fill"/><circle cx="12" cy="6.3" r=".9" class="fill"/></svg></button>
         <button class="icon" id="btnInfo" title="Data sources"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6.2v.1"/></svg></button>
       </header>
 

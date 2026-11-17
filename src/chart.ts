@@ -66,6 +66,7 @@ export class Chart {
       if (this.colMin[nu.n] == null || nu.z < this.colMin[nu.n]) this.colMin[nu.n] = nu.z;
     }
     this.readTheme();
+    this.buildSpine();
     new ResizeObserver(() => this.resize()).observe(canvas);
     this.resize();
     this.bind();
@@ -80,6 +81,12 @@ export class Chart {
       bg: v('--chart-bg'), grid: v('--chart-grid'), magic: v('--chart-magic'), text: v('--text'),
       textDim: v('--text-dim'), axis: v('--chart-axis'), ring: v('--accent'),
     };
+    const font = v('--font') || DEFAULT_FONT;
+    if (font !== FONT) {
+      FONT = font;
+      this.widthCache.clear();
+      this.sprites = new SpriteCache();
+    }
     this.invalidate();
   }
 
@@ -170,6 +177,61 @@ export class Chart {
   /** Fit the whole chart in the viewport. */
   fit(animate = true) {
     this.fitBox(0, this.ds.maxN, 0, this.ds.maxZ, animate, 1e9, { l: 0, r: this.insets.r, t: 0, b: 0 });
+  }
+
+  /** True when the view is (close to) the whole-chart fit. */
+  isFit() {
+    const { maxN, maxZ } = this.ds;
+    const pad = 36, r = this.insets.r;
+    const w = Math.max(80, this.W - r - pad * 2), h = Math.max(80, this.H - pad * 2);
+    const s = clampS(Math.min(w / (maxN + 1), h / (maxZ + 1)));
+    return Math.abs(this.ts - s) / s < 0.08 && Math.abs(this.tcx - this.cx) < 1 && Math.abs(this.tcy - this.cy) < 1 && this.ts <= s * 1.08;
+  }
+
+  /**
+   * Move along the valley of stability by a screen distance (px). Positive goes
+   * toward heavier nuclides. The view keeps its offset from the valley.
+   */
+  travel(px: number) {
+    const sp = this.spine;
+    if (!sp.length) return;
+    // Mass number near the view centre picks the local direction of the valley.
+    const A = Math.round(Math.min(sp.length - 1, Math.max(1, this.tcx + this.tcy)));
+    const k = 6;
+    const a0 = sp[Math.max(1, A - k)], a1 = sp[Math.min(sp.length - 1, A + k)];
+    let dn = a1[0] - a0[0], dz = a1[1] - a0[1];
+    const len = Math.hypot(dn, dz) || 1;
+    dn /= len; dz /= len;
+    const dist = px / this.s;
+    this.anchor = null;
+    this.touched = true;
+    this.tcx = Math.min(this.ds.maxN + 5, Math.max(-5, this.tcx + dn * dist));
+    this.tcy = Math.min(this.ds.maxZ + 5, Math.max(-5, this.tcy + dz * dist));
+    this.kick();
+  }
+
+  /** Smoothed line of the most stable nuclide for each mass number: spine[A] = [n, z]. */
+  private spine: [number, number][] = [];
+  private buildSpine() {
+    const best: (Nuclide | undefined)[] = [];
+    const score = (nu: Nuclide) => (nu.st ? Infinity : nu.hl ?? -1);
+    for (const nu of this.ds.nuclides) {
+      const b = best[nu.a];
+      if (!b || score(nu) > score(b)) best[nu.a] = nu;
+    }
+    const raw: [number, number][] = [];
+    let last: [number, number] = [0, 0];
+    for (let A = 0; A < best.length; A++) {
+      const b = best[A];
+      if (b) last = [b.n, b.z];
+      raw[A] = b ? [b.n, b.z] : [last[0] + 0.6, last[1] + 0.4];
+    }
+    const w = 5;
+    this.spine = raw.map((_, A) => {
+      let n = 0, z = 0, c = 0;
+      for (let j = Math.max(0, A - w); j <= Math.min(raw.length - 1, A + w); j++) { n += raw[j][0]; z += raw[j][1]; c++; }
+      return [n / c, z / c] as [number, number];
+    });
   }
 
   /** Frame a region of the chart in the unobstructed part of the viewport. */
@@ -613,6 +675,14 @@ export class Chart {
     c.addEventListener('wheel', e => {
       e.preventDefault();
       const p = local(e);
+      if (e.shiftKey && !e.ctrlKey) {
+        // Browsers often turn shift+wheel into horizontal scrolling, so take whichever axis moved.
+        let d = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+        if (e.deltaMode === 1) d *= 16;
+        this.travel(d * 1.4);
+        this.setHover(this.nuclideAt(p.x, p.y), p.x, p.y);
+        return;
+      }
       if (e.ctrlKey || Math.abs(e.deltaY) >= Math.abs(e.deltaX) * 0.5 || e.deltaMode !== 0) {
         const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
         const f = Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0022));
@@ -641,7 +711,8 @@ export class Chart {
   }
 }
 
-const FONT = `Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+const DEFAULT_FONT = `Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+let FONT = DEFAULT_FONT;
 const DARK_TEXT = 'rgba(10,12,16,0.92)';
 const LIGHT_TEXT = 'rgba(255,255,255,0.95)';
 

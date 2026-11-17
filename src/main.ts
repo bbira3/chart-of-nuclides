@@ -2,12 +2,13 @@ import './style.css';
 import { loadDataset, loadFyIndex, loadFy, type Dataset, type FyData, type FySystem, type Nuclide } from './data';
 import { decayChain, mainPath } from './chain';
 import {
-  COLOR_MODES, computeColoring, css, familyColor, fmtNum, fmtPct, fmtTime, legendPos, luminance,
+  COLOR_MODES, computeColoring, css, familyColor, fmtNum, fmtPct, fmtTime, legendPos, luminance, missingColor, scaleFor,
   type Coloring, type ContinuousMode, type ColorMode,
 } from './colors';
 import { Chart, type Overlay } from './chart';
 import { activate, loadActivation, naturalTargets, reactionsOn, SPECTRA, type ActData, type Spectrum } from './activation';
 import { SimModal } from './ui/sim';
+import { Appearance } from './ui/appearance';
 import { $, el, label, toast } from './ui/dom';
 
 type Mode = 'chart' | 'fy' | 'act';
@@ -50,7 +51,10 @@ class App {
   pinned: Nuclide | null = null;
   listHover: Nuclide | null = null;
   sim = new SimModal();
-  dark = true;
+  look = new Appearance($('#btnTheme'));
+  get dark() { return this.look.theme.dark; }
+  /** A theme variable, e.g. '--text'. */
+  tv(name: string) { return this.look.theme.vars[name]; }
 
   private tip = $('#tip');
   private legend = $('#legend');
@@ -61,7 +65,7 @@ class App {
 
   async init() {
     this.loadState();
-    this.applyTheme(document.documentElement.dataset.theme ?? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'), false);
+    this.look.onChange = what => this.onLook(what);
     const [ds, fyIndex] = await Promise.all([loadDataset(), loadFyIndex()]);
     this.ds = ds;
     this.fyIndex = fyIndex;
@@ -70,6 +74,7 @@ class App {
     this.chart.onHover = (nu, x, y) => this.onHover(nu, x, y);
     this.chart.onClick = nu => this.pin(nu);
     this.chart.onViewChange = () => this.drawMiniViewport();
+    this.chart.showMagic = this.look.look.magic;
     this.sim.onPick = nu => { this.sim.close(); this.pin(nu, true); };
 
     this.buildColorSelect();
@@ -206,7 +211,7 @@ class App {
         if (!seenT.has(r.target.idx)) {
           seenT.add(r.target.idx);
           a[r.target.idx] = 1;
-          overlay.rings.push({ nu: r.target, color: this.dark ? '#ffffff' : '#15181d', width: 2.5 });
+          overlay.rings.push({ nu: r.target, color: this.tv('--text'), width: 2.5 });
         }
         if (!r.product) continue;
         const w = Math.max(0.04, Math.min(1, (Math.log10(r.weight / maxW) + 6) / 6));
@@ -214,8 +219,9 @@ class App {
       }
     }
 
-    // Decay chain of the hovered (or pinned) nuclide.
-    const focus = this.listHover ?? this.chart.hover ?? this.pinned;
+    // Decay chain of the hovered (or pinned) nuclide. In activation mode only a
+    // pinned (clicked) nuclide shows its chain, so hovering stays calm.
+    const focus = s.mode === 'act' ? this.pinned : (this.listHover ?? this.chart.hover ?? this.pinned);
     if (focus && focus.branches.length) {
       const ch = decayChain(focus);
       const a = A();
@@ -233,6 +239,8 @@ class App {
         });
       }
     }
+
+    if (s.mode === 'act' && this.listHover) overlay.rings.push({ nu: this.listHover, color: this.tv('--accent'), width: 3 });
 
     this.chart.setFocus(alpha, hidden);
     this.chart.setOverlay(overlay);
@@ -418,7 +426,8 @@ class App {
     const cm = m as ContinuousMode;
     const [d0, d1] = this.coloring.domain;
     const stops: string[] = [];
-    for (let i = 0; i <= 16; i++) stops.push(css(cm.scale(i / 16)));
+    const scale = scaleFor(cm);
+    for (let i = 0; i <= 16; i++) stops.push(css(scale(i / 16)));
     const bar = el('div', { class: 'bar', style: `background:linear-gradient(90deg,${stops.join(',')})` });
     bar.append(el('div', { class: 'marker', hidden: true }));
     L.append(bar);
@@ -429,7 +438,7 @@ class App {
     const sp = cm.specials ?? [];
     const specials = el('div', { class: 'specials' });
     for (const x of sp) specials.append(el('span', {}, el('i', { style: `background:${css(x.color(this.dark))}` }), x.label));
-    specials.append(el('span', {}, el('i', { style: `background:${css(this.dark ? [58, 62, 70] : [214, 217, 222])}` }), 'No data'));
+    specials.append(el('span', {}, el('i', { style: `background:${css(missingColor())}` }), 'No data'));
     L.append(specials);
   }
 
@@ -483,7 +492,7 @@ class App {
     const vp = this.chart.viewport;
     const x0 = ox + (vp.n0 + 1 + 0.5) * sc, x1 = ox + (vp.n1 + 1 + 0.5) * sc;
     const y0 = oy + (base.height - 2 - vp.z1 + 0.5) * sc, y1 = oy + (base.height - 2 - vp.z0 + 0.5) * sc;
-    g.strokeStyle = this.dark ? '#ffffff' : '#15181d';
+    g.strokeStyle = this.tv('--text');
     g.lineWidth = 1.5;
     g.fillStyle = this.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
     const rx = Math.max(ox, x0), ry = Math.max(oy, y0);
@@ -888,7 +897,6 @@ class App {
     document.querySelectorAll<HTMLButtonElement>('#modeSeg button').forEach(b =>
       b.addEventListener('click', () => this.setMode(b.dataset.mode as Mode)));
     $('#btnFit').addEventListener('click', () => this.chart.fit());
-    $('#btnTheme').addEventListener('click', () => this.applyTheme(this.dark ? 'light' : 'dark'));
     $('#btnPng').addEventListener('click', async () => {
       const blob = await this.chart.snapshot();
       if (!blob) return;
@@ -911,20 +919,20 @@ class App {
     this.mini.addEventListener('pointermove', e => { if (e.buttons) nav(e); });
 
     window.addEventListener('keydown', e => {
-      const t = e.target as HTMLElement;
-      if (t.matches('input, select, textarea')) return;
-      if (e.key === '/' ) { e.preventDefault(); input.focus(); return; }
-      if (e.key === 'Escape') {
-        if (!$('#info').hidden) { $('#info').hidden = true; return; }
-        if (this.sim.isOpen) { this.sim.close(); return; }
-        this.pin(null);
+      const t = e.target instanceof HTMLElement ? e.target : document.body;
+      if (e.key === 'Escape' && t !== input) {
+        if (t.matches('input, select, textarea, button')) t.blur();
+        e.preventDefault();
+        this.escape();
         return;
       }
+      if (t.matches('input, select, textarea')) return;
+      if (e.key === '/' ) { e.preventDefault(); input.focus(); return; }
       if (this.sim.isOpen) return;
       if (e.key === '0') this.chart.fit();
       else if (e.key === '+' || e.key === '=') this.chart.zoomBy(1.5);
       else if (e.key === '-') this.chart.zoomBy(1 / 1.5);
-      else if (e.key === 't') this.applyTheme(this.dark ? 'light' : 'dark');
+      else if (e.key === 't' || e.key === 'T') this.look.cycleTheme(e.shiftKey ? -1 : 1);
       else if (e.key === 'f' && this.pinned) this.chart.focusNuclide(this.pinned);
       else if (e.key === 's' && this.pinned?.branches.length) this.openChainSim(this.pinned);
       else if (e.key === '1') this.setMode('chart');
@@ -947,15 +955,29 @@ class App {
     window.addEventListener('hashchange', () => this.fromHash());
   }
 
-  applyTheme(t: string, redraw = true) {
-    this.dark = t !== 'light';
-    document.documentElement.dataset.theme = this.dark ? 'dark' : 'light';
-    try { localStorage.setItem('con.theme', this.dark ? 'dark' : 'light'); } catch { /* ignore */ }
-    if (redraw && this.chart) {
-      this.chart.readTheme();
-      this.recolor();
-      this.renderDetail();
-    }
+  /** Theme, palette or magic-line change from the appearance popover. */
+  private onLook(what: 'theme' | 'colors' | 'magic') {
+    if (!this.chart) return;
+    if (what === 'magic') { this.chart.showMagic = this.look.look.magic; this.chart.invalidate(); return; }
+    if (what === 'theme') this.chart.readTheme();
+    this.recolor();
+    this.renderDetail();
+    if (this.sim.isOpen) this.sim.redraw();
+  }
+
+  /**
+   * Escape backs out one layer at a time: popovers and dialogs, then the pinned
+   * nuclide, legend filters, fission/activation mode, and finally the zoomed view.
+   */
+  escape() {
+    this.tip.hidden = true;
+    if (this.look.isOpen) { this.look.close(); return; }
+    if (!$('#info').hidden) { $('#info').hidden = true; return; }
+    if (this.sim.isOpen) { this.sim.close(); return; }
+    if (this.pinned) { this.pin(null); return; }
+    if (this.catOff.size) { this.catOff.clear(); this.renderLegend(); this.refocus(); return; }
+    if (this.state.mode !== 'chart') { this.setMode('chart'); return; }
+    if (!this.chart.isFit()) { this.chart.fit(); return; }
   }
 
   private showInfo() {
@@ -966,7 +988,7 @@ class App {
     ul.append(el('li', {}, el('a', { href: 'https://www.nndc.bnl.gov/endf-b8.0/', target: '_blank', rel: 'noopener' }, 'ENDF/B-VIII.0 neutron sublibrary (reaction cross sections)')));
     B.append(ul, el('div', { class: 'stat' }, `${this.ds.nuclides.length} ground states · ${this.fyIndex.length} fission-yield sets · built ${this.ds.meta.built}`));
     const keys = el('div', { class: 'keys' });
-    for (const [k, v] of [['/', 'Search'], ['1 2 3', 'Decay · Fission · Activation'], ['Click', 'Pin details'], ['← ↑ → ↓', 'Step between neighbours'], ['s', 'Simulate decay'], ['0', 'Fit'], ['+ −', 'Zoom'], ['t', 'Theme'], ['Shift-click legend', 'Solo category']]) {
+    for (const [k, v] of [['/', 'Search'], ['1 2 3', 'Decay · Fission · Activation'], ['Click', 'Pin details'], ['Shift + scroll', 'Travel along the valley of stability'], ['← ↑ → ↓', 'Step between neighbours'], ['s', 'Simulate decay'], ['0', 'Fit'], ['+ −', 'Zoom'], ['t', 'Next theme'], ['Esc', 'Back out one level'], ['Shift-click legend', 'Solo category']]) {
       keys.append(el('kbd', {}, k), el('span', {}, v));
     }
     B.append(keys);

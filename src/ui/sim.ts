@@ -72,6 +72,9 @@ export class SimModal {
 
   get isOpen() { return !this.root.hidden; }
 
+  /** Repaint after a theme change. */
+  redraw() { this.draw(); this.renderLegend(); }
+
   close() { this.root.hidden = true; }
 
   /** Open a simulation: nodes in any order, initial inventory per node. */
@@ -222,6 +225,7 @@ export class SimModal {
     const ctx = this.ctx;
     const st = getComputedStyle(document.documentElement);
     const col = (n: string) => st.getPropertyValue(n).trim();
+    const FONT = col('--font') || FALLBACK_FONT;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = col('--panel-solid');
     ctx.fillRect(0, 0, W, H);
@@ -377,4 +381,4 @@ function timeTicks(t0: number, t1: number): [number, string][] {
 }
 
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
-const FONT = `Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+const FALLBACK_FONT = `Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
