@@ -14,6 +14,7 @@ export class Help {
   constructor() {
     this.root.addEventListener('pointerdown', e => { if (e.target === this.root) this.close(); });
     $('#helpClose').addEventListener('click', () => this.close());
+    this.bindHoverCards();
     this.search.addEventListener('input', () => this.renderNav());
     this.search.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
@@ -25,7 +26,55 @@ export class Help {
 
   get isOpen() { return !this.root.hidden; }
 
+  // ------------------------------------------------------------ hover cards
+  // Anything with data-help shows a short explanation on hover; clicking opens the topic.
+  private card: HTMLElement | null = null;
+  private cardFor: HTMLElement | null = null;
+  private cardTimer = 0;
+
+  private bindHoverCards() {
+    document.addEventListener('pointerover', e => {
+      if (e.pointerType === 'touch') return;
+      const t = (e.target as Element | null)?.closest?.('[data-help]') as HTMLElement | null;
+      if (t === this.cardFor) return;
+      this.hideCard();
+      if (!t || this.isOpen) return;
+      this.cardFor = t;
+      this.cardTimer = window.setTimeout(() => this.showCard(t), 280);
+    });
+    document.addEventListener('pointerout', e => {
+      const to = e.relatedTarget as Node | null;
+      if (this.cardFor && (!to || !this.cardFor.contains(to))) this.hideCard();
+    });
+    document.addEventListener('pointerdown', () => this.hideCard(), true);
+    window.addEventListener('scroll', () => this.hideCard(), true);
+  }
+
+  private showCard(target: HTMLElement) {
+    const t = TOPICS.find(x => x.id === target.dataset.help);
+    if (!t || !target.isConnected) return;
+    const card = el('div', { class: 'hovercard', role: 'tooltip' }, el('b', {}, t.title));
+    if (t.move) card.append(el('span', { class: 'move' }, t.move));
+    card.append(el('p', {}, summary(t.body[0] ?? '')), el('div', { class: 'more' }, 'Click for the full explanation'));
+    document.body.append(card);
+    this.card = card;
+    const r = target.getBoundingClientRect();
+    const w = card.offsetWidth, h = card.offsetHeight;
+    const left = Math.min(Math.max(8, r.left), innerWidth - w - 8);
+    const top = r.bottom + h + 12 < innerHeight ? r.bottom + 8 : Math.max(8, r.top - h - 8);
+    card.style.left = `${left}px`;
+    card.style.top = `${top}px`;
+  }
+
+  private hideCard() {
+    clearTimeout(this.cardTimer);
+    this.card?.remove();
+    this.card = null;
+    this.cardFor = null;
+  }
+
   open(topicId?: string) {
+    this.hideCard();
     this.root.hidden = false;
     if (topicId) this.search.value = '';
     this.show(topicId ?? this.current.id);
@@ -101,4 +150,11 @@ export class Help {
       A.append(el('h5', {}, `More in ${t.group}`), row);
     }
   }
+}
+
+/** First sentence or two of a paragraph, kept short for hover cards. */
+function summary(p: string, max = 220): string {
+  if (p.length <= max) return p;
+  const cut = p.lastIndexOf('. ', max);
+  return cut > 60 ? p.slice(0, cut + 1) : `${p.slice(0, max).replace(/\s+\S*$/, '')}…`;
 }

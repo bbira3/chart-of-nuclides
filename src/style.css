@@ -438,14 +438,25 @@ table.rx td.z { color: var(--text-faint); }
 .help-article ul.wiki a:hover { text-decoration: underline; }
 
 /* help hooks around the app */
-.help-link { cursor: help; text-decoration: underline dotted; text-decoration-color: var(--text-faint); text-underline-offset: 3px; }
-.help-link:hover { text-decoration-color: var(--accent); }
+/* Helpable labels look like plain text; hovering tints them and shows a hover card. */
+.help-link { cursor: help; border-radius: 4px; transition: background 0.12s, box-shadow 0.12s; }
+.help-link:hover { background: var(--accent-soft); box-shadow: 0 0 0 3px var(--accent-soft); }
 .qbtn {
-  display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--line-2);
-  font-size: 10px; font-weight: 700; color: var(--text-dim); cursor: help; background: none; padding: 0; margin-left: 6px; vertical-align: middle; flex: none;
-  text-transform: none; letter-spacing: 0;
+  display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; border: 0;
+  font-size: 9.5px; font-weight: 700; color: var(--text-dim); cursor: help; background: var(--line); padding: 0; margin-left: 6px;
+  vertical-align: middle; flex: none; text-transform: none; letter-spacing: 0; opacity: 0.7; transition: opacity 0.12s, background 0.12s, color 0.12s;
 }
-.qbtn:hover { color: var(--accent); border-color: var(--accent); }
+.qbtn:hover { opacity: 1; color: #fff; background: var(--accent); }
+
+.hovercard {
+  position: fixed; z-index: 60; max-width: 300px; padding: 10px 12px; border-radius: 10px; pointer-events: none;
+  background: var(--panel-solid); border: 1px solid var(--line-2); box-shadow: var(--shadow); font-size: 12px; line-height: 1.5;
+  animation: fade 0.12s ease-out;
+}
+.hovercard b { display: block; font-size: 13px; margin-bottom: 2px; }
+.hovercard .move { display: inline-block; margin: 2px 0 4px; padding: 1px 7px; border-radius: 5px; font-size: 11px; font-weight: 600; background: var(--accent-soft); color: var(--accent); }
+.hovercard p { margin: 0; color: var(--text); }
+.hovercard .more { margin-top: 6px; color: var(--text-dim); font-size: 11px; }
 
 @media (max-width: 700px) {
   .help-body { grid-template-columns: 1fr; grid-template-rows: 34% 1fr; }

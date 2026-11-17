@@ -428,7 +428,7 @@ class App {
     const m = this.coloring.mode;
     const L = this.legend;
     L.innerHTML = '';
-    const title = el('div', { class: 'title' }, el('span', {}, m.label, el('button', { class: 'qbtn', 'data-help': colorTopic(m.id), title: `What is ${m.label}?` }, '?')));
+    const title = el('div', { class: 'title' }, el('span', {}, m.label, el('button', { class: 'qbtn', 'data-help': colorTopic(m.id) }, '?')));
     if (m.id === 'fy' && this.fySystem) title.append(el('small', {}, `${this.fySystem.target} · ${this.state.fyKind === 'cum' ? 'cumulative' : 'independent'}`));
     if (m.id === 'act') title.append(el('small', {}, SPECTRA[this.state.actSp]));
     L.append(title);
@@ -488,7 +488,7 @@ class App {
     const key = el('div', { class: 'rxkey' });
     for (const [c, labels] of byColor) {
       const item = el('span', {}, el('i', { style: `background:${c}` }));
-      labels.forEach((l, i) => item.append(i ? ' ' : '', el('span', { class: 'help-link', 'data-help': reactionTopic(l), title: `What is (${l})?` }, `(${l})`)));
+      labels.forEach((l, i) => item.append(i ? ' ' : '', el('span', { class: 'help-link', 'data-help': reactionTopic(l) }, `(${l})`)));
       key.append(item);
     }
     L.append(el('div', { class: 'title sub' }, 'Arrows', el('small', {}, 'reaction · width = share')), key);
@@ -796,7 +796,7 @@ class App {
     const add = (k: string, v: string | null | undefined, small?: string) => {
       if (v == null) return;
       const h = PROP_HELP[k];
-      kv.append(el('dt', h ? { class: 'help-link', 'data-help': h, title: `What is ${k}?` } : {}, k), el('dd', {}, v, small ? el('small', {}, ` ${small}`) : null));
+      kv.append(el('dt', h ? { class: 'help-link', 'data-help': h } : {}, k), el('dd', {}, v, small ? el('small', {}, ` ${small}`) : null));
     };
     add('Half-life', nu.st ? 'Stable' : nu.hlt);
     add('Jπ', nu.jp);
@@ -820,7 +820,7 @@ class App {
       for (const b of nu.branches) {
         const target = b.target ? this.chip(b.target) : el('span', { class: 'stat' }, b.family === 'SF' || b.mode.endsWith('SF') ? 'fission' : b.offChart ? 'off chart' : '—');
         const p = b.pct != null ? `${fmtNum(b.pct, 4)} %${b.unc ? ` ± ${fmtNum(b.unc, 2)}` : ''}` : '?';
-        dec.append(el('div', { class: 'd' }, el('span', { class: 'm help-link', 'data-help': decayTopic(b.mode, b.family, b.delayed), title: 'What is this decay mode?', style: `color:${css(familyColor(b.family, this.dark))}` }, prettyMode(b.mode)), target, el('span', { class: 'p' }, p)));
+        dec.append(el('div', { class: 'd' }, el('span', { class: 'm help-link', 'data-help': decayTopic(b.mode, b.family, b.delayed), style: `color:${css(familyColor(b.family, this.dark))}` }, prettyMode(b.mode)), target, el('span', { class: 'p' }, p)));
       }
       body.append(el('section', {}, el('h4', {}, el('span', {}, 'Decay', q('decay-modes'))), dec));
 
@@ -858,11 +858,11 @@ class App {
         const t = el('table', { class: 'rx' });
         t.append(el('tr', {}, el('th', {}, 'σ (b)'), el('th', {}, 'Thermal'), el('th', {}, 'Fission'), el('th', {}, '14 MeV')));
         for (const r of rx.slice(0, 8)) {
-          const first = el('td', {}, el('span', { class: 'help-link', 'data-help': reactionTopic(r.label), title: `What is (${r.label})?`, style: `color:${REACTION_COLORS[r.label] ?? 'inherit'};font-weight:600` }, `(${r.label})`), ' ');
+          const first = el('td', {}, el('span', { class: 'help-link', 'data-help': reactionTopic(r.label), style: `color:${REACTION_COLORS[r.label] ?? 'inherit'};font-weight:600` }, `(${r.label})`), ' ');
           if (r.product) first.append(this.chip(r.product));
           t.append(el('tr', {}, first, ...r.sig.map(v => el('td', { class: v ? '' : 'z' }, v ? fmtNum(v, 3) : '—'))));
         }
-        body.append(el('section', {}, el('h4', {}, el('span', {}, 'Neutron reactions', q('reactions')), el('span', { class: 'help-link', 'data-help': 'spectra' }, 'energies?')), t));
+        body.append(el('section', {}, el('h4', {}, el('span', {}, 'Neutron reactions', q('reactions')), el('span', {}, 'energies', q('spectra'))), t));
       }
     }
 
@@ -1186,7 +1186,7 @@ class App {
 // ---------------------------------------------------------------- helpers
 /** A small "?" that opens a help topic. */
 function q(topic: string) {
-  return el('button', { class: 'qbtn', 'data-help': topic, title: 'What does this mean?' }, '?');
+  return el('button', { class: 'qbtn', 'data-help': topic }, '?');
 }
 
 function segment(opts: [string, string][], value: string, on: (v: string) => void) {
