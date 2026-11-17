@@ -396,3 +396,7 @@ table.rx td.z { color: var(--text-faint); }
 .info-body ul.notes li { margin: 3px 0; }
 .info-body ul.notes li::marker { color: var(--text-faint); }
 .info-body .keys { margin-top: 4px; }
+.legend .title.sub { margin: 12px 0 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+.legend .rxkey { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; font-size: 12px; }
+.legend .rxkey span { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.legend .rxkey i { width: 16px; height: 3px; border-radius: 2px; flex: none; }

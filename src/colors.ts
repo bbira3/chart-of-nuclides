@@ -6,7 +6,7 @@ export type RGB = [number, number, number];
 export interface ColorContext {
   fy: Record<string, [number, number]> | null;
   fyLabel: string;
-  /** Activation production weight per nuclide index (barns per target atom). */
+  /** Activation: each product's share of total production (0..1), by nuclide index. */
   act: Map<number, number> | null;
   dark: boolean;
 }
@@ -193,6 +193,17 @@ export function fmtTime(sec: number, digits = 3): string {
   return `${sec.toExponential(1)} s`;
 }
 
+// ------------------------------------------------------------ activation bins
+/** Decade bins for the share of activation production; brightest = most produced. */
+export const ACT_BINS = [
+  { key: 'a', min: 0.1, label: '≥ 10 %', color: '#fff3a3' },
+  { key: 'b', min: 0.01, label: '1 – 10 %', color: '#fb9b06' },
+  { key: 'c', min: 1e-3, label: '0.1 – 1 %', color: '#d4433f' },
+  { key: 'd', min: 1e-4, label: '0.01 – 0.1 %', color: '#9c2a72' },
+  { key: 'e', min: 0, label: '< 0.01 %', color: '#5a3a8c' },
+];
+export const actBin = (share: number) => (ACT_BINS.find(b => share >= b.min) ?? ACT_BINS[ACT_BINS.length - 1]).key;
+
 // ------------------------------------------------------------ modes
 const MeV = (v: number | null) => (v == null ? null : v / 1000);
 
@@ -257,11 +268,13 @@ export const COLOR_MODES: ColorMode[] = [
     format: v => `${fmtPct(10 ** v)}`,
   },
   {
-    id: 'act', label: 'Activation production', group: 'Activation', kind: 'seq', scale: t => MAGMA(0.2 + 0.8 * t), log: true, unit: 'b',
-    description: 'Production per target atom: abundance × cross section, log scale.',
-    value: (nu, ctx) => ctx.act?.get(nu.idx) ?? null,
-    autoSpan: 5,
-    format: v => `${fmtNum(10 ** v)} b`,
+    id: 'act', label: 'Share of activation', group: 'Activation', kind: 'cat',
+    description: 'Share of everything produced from the chosen target (abundance × σ), in decade bins.',
+    categories: () => ACT_BINS.map(b => ({ key: b.key, label: b.label, color: hex(b.color) })),
+    value: (nu, ctx) => {
+      const v = ctx.act?.get(nu.idx);
+      return v == null ? null : actBin(v);
+    },
   },
   {
     id: 'spin', label: 'Spin J', group: 'Structure', kind: 'seq', scale: VIRIDIS, unit: 'ħ',

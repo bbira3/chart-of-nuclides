@@ -44,7 +44,9 @@ class App {
   fyData: FyData | null = null;
   act: ActData | null = null;
   actResult: ReturnType<typeof activate> | null = null;
-  actWeight: Map<number, number> | null = null;
+  /** Each activation product's share of total production (0..1). */
+  actShare: Map<number, number> | null = null;
+  actTotal = 0;
   coloring!: Coloring;
   state: State = { ...DEFAULTS };
   catOff = new Set<string>();
@@ -139,7 +141,9 @@ class App {
       targets = nu ? [{ nu, frac: 1 }] : [];
     } else targets = naturalTargets(this.ds, s.actZ);
     this.actResult = activate(this.ds, this.act, targets, s.actSp);
-    this.actWeight = new Map(this.actResult.products.map(p => [p.product.idx, p.weight]));
+    this.actTotal = this.actResult.products.reduce((t, p) => t + p.weight, 0);
+    const tot = this.actTotal || 1;
+    this.actShare = new Map(this.actResult.products.map(p => [p.product.idx, p.weight / tot]));
   }
 
   // -------------------------------------------------------------- colouring
@@ -148,7 +152,7 @@ class App {
     const ctx = {
       fy: s.mode === 'fy' || s.color === 'fy' ? (this.fyData?.[s.fyKind] ?? null) : null,
       fyLabel: '',
-      act: this.actWeight,
+      act: this.actShare,
       dark: this.dark,
     };
     this.coloring = computeColoring(this.ds, this.mode, ctx);
@@ -206,7 +210,7 @@ class App {
       sub = new Array(n);
       for (const p of products) {
         a[p.product.idx] = 1;
-        sub[p.product.idx] = p.reactions[0].label;
+        sub[p.product.idx] = `${p.reactions[0].label} ${pctShort(p.weight / (this.actTotal || 1))}`;
       }
       const seenT = new Set<number>();
       for (const r of reactions) {
@@ -216,7 +220,8 @@ class App {
           overlay.rings.push({ nu: r.target, color: this.tv('--text'), width: 2.5 });
         }
         if (!r.product) continue;
-        const w = Math.max(0.04, Math.min(1, (Math.log10(r.weight / maxW) + 6) / 6));
+        // Arrow weight follows the share of production, so dominant reactions stand out.
+        const w = Math.max(0.05, Math.min(1, Math.sqrt(r.weight / (this.actTotal || maxW))));
         overlay.edges.push({ from: r.target, to: r.product, color: REACTION_COLORS[r.label] ?? '#aab4bf', weight: w });
       }
     }
@@ -373,7 +378,10 @@ class App {
     }
     if (s.mode === 'act' && this.actResult) {
       const p = this.actResult.products.find(p => p.product === nu);
-      if (p) for (const r of p.reactions.slice(0, 3)) rows.push([`${r.target.id} (${r.label})`, `${fmtNum(r.sigma, 3)} b`]);
+      if (p) {
+        rows.push(['Share of production', fmtPct(p.weight / (this.actTotal || 1))]);
+        for (const r of p.reactions.slice(0, 3)) rows.push([`${r.target.id} (${r.label}) σ`, `${fmtNum(r.sigma, 3)} b`]);
+      }
     }
     const tip = this.tip;
     tip.innerHTML = '';
@@ -437,6 +445,7 @@ class App {
         cats.append(d);
       }
       L.append(cats);
+      this.appendReactionKey(L);
       return;
     }
     const cm = m as ContinuousMode;
@@ -456,6 +465,24 @@ class App {
     for (const x of sp) specials.append(el('span', {}, el('i', { style: `background:${css(x.color(this.dark))}` }), x.label));
     specials.append(el('span', {}, el('i', { style: `background:${css(missingColor())}` }), 'No data'));
     L.append(specials);
+    this.appendReactionKey(L);
+  }
+
+  /** In activation mode, explain the arrow colours (one row per colour actually drawn). */
+  private appendReactionKey(L: HTMLElement) {
+    if (this.state.mode !== 'act' || !this.actResult) return;
+    const byColor = new Map<string, string[]>();
+    for (const r of this.actResult.reactions) {
+      if (!r.product) continue;
+      const c = REACTION_COLORS[r.label] ?? '#aab4bf';
+      const labels = byColor.get(c) ?? [];
+      if (!labels.includes(r.label)) labels.push(r.label);
+      byColor.set(c, labels);
+    }
+    if (!byColor.size) return;
+    const key = el('div', { class: 'rxkey' });
+    for (const [c, labels] of byColor) key.append(el('span', {}, el('i', { style: `background:${c}` }), labels.map(l => `(${l})`).join(' ')));
+    L.append(el('div', { class: 'title sub' }, 'Arrows', el('small', {}, 'reaction · width = share')), key);
   }
 
   private renderLegendMarker(nu: Nuclide | null) {
@@ -607,10 +634,10 @@ class App {
     for (const [nu, y] of top) list.append(this.listRow(nu, nu.st ? 'stable' : shortHlText(nu), fmtPct(y), y / max));
   }
 
-  private listRow(nu: Nuclide, sub: string, value: string, frac: number) {
-    const li = el('li', {},
+  private listRow(nu: Nuclide, sub: string | Node, value: string, frac: number, title?: string) {
+    const li = el('li', { title },
       label(nu),
-      el('span', { class: 'sub' }, sub),
+      typeof sub === 'string' ? el('span', { class: 'sub' }, sub) : sub,
       el('span', { class: 'v' }, value),
       el('span', { class: 'barbg' }, el('i', { style: `width:${Math.max(2, frac * 100)}%` })));
     li.addEventListener('click', () => this.pin(nu, true));
@@ -682,12 +709,16 @@ class App {
     P.append(el('div', { class: 'field' }, el('span', {}, 'Neutrons'), spSeg));
     const list = el('ul', { class: 'list' });
     const prods = this.actResult?.products ?? [];
-    const maxW = prods[0]?.weight ?? 1;
+    const tot = this.actTotal || 1;
+    if (prods.length) P.append(el('div', { class: 'stat' }, 'Share of production · total ', el('b', {}, `${fmtNum(this.actTotal, 3)} b`), ' per target atom'));
     for (const p of prods.slice(0, 16)) {
       const r = p.reactions[0];
-      const sub = `${r.target.id} (${r.label})${p.reactions.length > 1 ? ` +${p.reactions.length - 1}` : ''} · ${p.product.st ? 'stable' : shortHlText(p.product)}`;
-      const frac = Math.max(0.02, (Math.log10(p.weight / maxW) + 6) / 6);
-      list.append(this.listRow(p.product, sub, `${fmtNum(p.weight, 3)} b`, frac));
+      const sub = el('span', { class: 'sub' },
+        `${r.target.id} `,
+        el('span', { style: `color:${REACTION_COLORS[r.label] ?? 'inherit'};font-weight:600` }, `(${r.label})`),
+        `${p.reactions.length > 1 ? ` +${p.reactions.length - 1}` : ''} · ${p.product.st ? 'stable' : shortHlText(p.product)}`);
+      const share = p.weight / tot;
+      list.append(this.listRow(p.product, sub, fmtPct(share), share, `${fmtNum(p.weight, 3)} b per target atom`));
     }
     if (!prods.length) list.append(el('li', {}, el('span', { class: 'sub' }, 'No reactions for this spectrum')));
     P.append(list);
