@@ -269,6 +269,7 @@ class App {
   async setMode(mode: Mode, user = true) {
     const s = this.state;
     const prev = s.mode;
+    const selected = this.detailNuclide;
     s.mode = mode;
     document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('on', (b as HTMLElement).dataset.mode === mode));
     if (user && prev !== mode) {
@@ -281,7 +282,11 @@ class App {
       ($('#colorBy') as HTMLSelectElement).value = s.color;
     }
     if (mode === 'fy') await this.ensureFy();
-    if (mode === 'act') await this.ensureAct();
+    if (mode === 'act') {
+      await this.ensureAct();
+      // Switching to Activation irradiates whatever was selected.
+      if (user && prev !== 'act' && selected && this.useAsTarget(selected)) this.pin(null);
+    }
     if (mode !== 'explore') this.explored = null;
     this.tip.hidden = true;
     this.renderPanel();
@@ -316,6 +321,17 @@ class App {
     const list: Nuclide[] = [];
     for (const [k, [y]] of Object.entries(this.fyData.cum)) if (y >= 1e-7) { const nu = this.ds.byId(k); if (nu) list.push(nu); }
     this.frame(list);
+  }
+
+  /** Make a nuclide the activation target: the isotope if it has neutron data, else its natural element. */
+  private useAsTarget(nu: Nuclide): boolean {
+    if (!this.act) return false;
+    const s = this.state;
+    if (reactionsOn(this.ds, this.act, nu).length) { s.actIso = `${nu.z},${nu.n}`; s.actZ = nu.z; }
+    else if (naturalTargets(this.ds, nu.z).length) { s.actIso = null; s.actZ = nu.z; }
+    else return false;
+    this.computeActivation();
+    return true;
   }
 
   frameAct() {
