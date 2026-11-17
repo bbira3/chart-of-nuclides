@@ -193,16 +193,12 @@ export function fmtTime(sec: number, digits = 3): string {
   return `${sec.toExponential(1)} s`;
 }
 
-// ------------------------------------------------------------ activation bins
-/** Decade bins for the share of activation production; brightest = most produced. */
-export const ACT_BINS = [
-  { key: 'a', min: 0.1, label: '≥ 10 %', color: '#fff3a3' },
-  { key: 'b', min: 0.01, label: '1 – 10 %', color: '#fb9b06' },
-  { key: 'c', min: 1e-3, label: '0.1 – 1 %', color: '#d4433f' },
-  { key: 'd', min: 1e-4, label: '0.01 – 0.1 %', color: '#9c2a72' },
-  { key: 'e', min: 0, label: '< 0.01 %', color: '#5a3a8c' },
-];
-export const actBin = (share: number) => (ACT_BINS.find(b => share >= b.min) ?? ACT_BINS[ACT_BINS.length - 1]).key;
+// ------------------------------------------------------------ activation scale
+/**
+ * Ramp for the share of activation production over four decades (0.01 % to 100 %):
+ * one clear hue step per decade, getting brighter toward the most-produced products.
+ */
+export const ACTIVATION = stops(['#4b2d86', '#9c2a72', '#d4433f', '#fb9b06', '#fff3a3']);
 
 // ------------------------------------------------------------ modes
 const MeV = (v: number | null) => (v == null ? null : v / 1000);
@@ -268,13 +264,11 @@ export const COLOR_MODES: ColorMode[] = [
     format: v => `${fmtPct(10 ** v)}`,
   },
   {
-    id: 'act', label: 'Share of activation', group: 'Activation', kind: 'cat',
-    description: 'Share of everything produced from the chosen target (abundance × σ), in decade bins.',
-    categories: () => ACT_BINS.map(b => ({ key: b.key, label: b.label, color: hex(b.color) })),
-    value: (nu, ctx) => {
-      const v = ctx.act?.get(nu.idx);
-      return v == null ? null : actBin(v);
-    },
+    id: 'act', label: 'Share of activation', group: 'Activation', kind: 'seq', scale: ACTIVATION, log: true, unit: '%',
+    description: 'Share of everything produced from the chosen target (abundance × σ), log scale from 0.01 % to 100 %.',
+    value: (nu, ctx) => ctx.act?.get(nu.idx) ?? null,
+    domain: [-4, 0],
+    format: v => fmtPct(10 ** v),
   },
   {
     id: 'spin', label: 'Spin J', group: 'Structure', kind: 'seq', scale: VIRIDIS, unit: 'ħ',
