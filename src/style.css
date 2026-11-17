@@ -400,3 +400,50 @@ table.rx td.z { color: var(--text-faint); }
 .legend .rxkey { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; font-size: 12px; }
 .legend .rxkey span { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
 .legend .rxkey i { width: 16px; height: 3px; border-radius: 2px; flex: none; }
+
+/* ---------------------------------------------------------------- help */
+.help-card { width: min(980px, calc(100vw - 32px)); height: min(680px, calc(100vh - 32px)); }
+.help-search { position: relative; width: min(320px, 40vw); }
+.help-search .ico { position: absolute; left: 10px; top: 50%; width: 15px; height: 15px; transform: translateY(-50%); }
+.help-search input {
+  width: 100%; height: 32px; padding: 0 10px 0 32px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel-2); outline: none;
+}
+.help-search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.help-body { flex: 1; display: grid; grid-template-columns: 250px 1fr; min-height: 0; }
+.help-nav { border-right: 1px solid var(--line); overflow: auto; padding: 8px; display: flex; flex-direction: column; gap: 1px; }
+.help-nav h6 { margin: 12px 6px 4px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-dim); font-weight: 600; }
+.help-nav h6:first-child { margin-top: 4px; }
+.help-nav button {
+  text-align: left; border: 0; background: none; padding: 5px 8px; border-radius: 7px; cursor: pointer; color: var(--text); font-size: 12.5px;
+}
+.help-nav button:hover { background: var(--line); }
+.help-nav button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.help-article { overflow: auto; padding: 18px 24px 24px; line-height: 1.6; }
+.help-article .grp { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; }
+.help-article h2 { margin: 2px 0 6px; font-size: 20px; }
+.help-article .move {
+  display: inline-block; margin-bottom: 8px; padding: 2px 9px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  background: var(--accent-soft); color: var(--accent); font-variant-numeric: tabular-nums;
+}
+.help-article p { margin: 8px 0; max-width: 68ch; }
+.help-article p.hint { color: var(--text-dim); font-style: italic; }
+.help-article h5 { margin: 18px 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); font-weight: 600; }
+.help-article .try, .help-article .related { display: flex; flex-wrap: wrap; gap: 6px; }
+.help-article ul.wiki { margin: 0; padding-left: 18px; }
+.help-article ul.wiki a { color: var(--accent); text-decoration: none; }
+.help-article ul.wiki a:hover { text-decoration: underline; }
+
+/* help hooks around the app */
+.help-link { cursor: help; text-decoration: underline dotted; text-decoration-color: var(--text-faint); text-underline-offset: 3px; }
+.help-link:hover { text-decoration-color: var(--accent); }
+.qbtn {
+  display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--line-2);
+  font-size: 10px; font-weight: 700; color: var(--text-dim); cursor: help; background: none; padding: 0; margin-left: 6px; vertical-align: middle; flex: none;
+  text-transform: none; letter-spacing: 0;
+}
+.qbtn:hover { color: var(--accent); border-color: var(--accent); }
+
+@media (max-width: 700px) {
+  .help-body { grid-template-columns: 1fr; grid-template-rows: 34% 1fr; }
+  .help-nav { border-right: 0; border-bottom: 1px solid var(--line); }
+}

@@ -9,6 +9,8 @@ import { Chart, type Overlay } from './chart';
 import { activate, loadActivation, naturalTargets, reactionsOn, SPECTRA, type ActData, type Spectrum } from './activation';
 import { SimModal } from './ui/sim';
 import { Appearance } from './ui/appearance';
+import { Help } from './ui/help';
+import { colorTopic, decayTopic, reactionTopic, type Example } from './helpContent';
 import { $, el, label, toast } from './ui/dom';
 
 type Mode = 'explore' | 'chart' | 'fy' | 'act';
@@ -56,6 +58,7 @@ class App {
   explored: Nuclide | null = null;
   sim = new SimModal();
   look = new Appearance($('#btnTheme'));
+  help = new Help();
   get dark() { return this.look.theme.dark; }
   /** A theme variable, e.g. '--text'. */
   tv(name: string) { return this.look.theme.vars[name]; }
@@ -70,6 +73,7 @@ class App {
   async init() {
     this.loadState();
     this.look.onChange = what => this.onLook(what);
+    this.help.onExample = ex => this.runExample(ex);
     const [ds, fyIndex] = await Promise.all([loadDataset(), loadFyIndex()]);
     this.ds = ds;
     this.fyIndex = fyIndex;
@@ -423,7 +427,7 @@ class App {
     const m = this.coloring.mode;
     const L = this.legend;
     L.innerHTML = '';
-    const title = el('div', { class: 'title' }, m.label);
+    const title = el('div', { class: 'title' }, el('span', {}, m.label, el('button', { class: 'qbtn', 'data-help': colorTopic(m.id), title: `What is ${m.label}?` }, '?')));
     if (m.id === 'fy' && this.fySystem) title.append(el('small', {}, `${this.fySystem.target} · ${this.state.fyKind === 'cum' ? 'cumulative' : 'independent'}`));
     if (m.id === 'act') title.append(el('small', {}, SPECTRA[this.state.actSp]));
     L.append(title);
@@ -481,7 +485,11 @@ class App {
     }
     if (!byColor.size) return;
     const key = el('div', { class: 'rxkey' });
-    for (const [c, labels] of byColor) key.append(el('span', {}, el('i', { style: `background:${c}` }), labels.map(l => `(${l})`).join(' ')));
+    for (const [c, labels] of byColor) {
+      const item = el('span', {}, el('i', { style: `background:${c}` }));
+      labels.forEach((l, i) => item.append(i ? ' ' : '', el('span', { class: 'help-link', 'data-help': reactionTopic(l), title: `What is (${l})?` }, `(${l})`)));
+      key.append(item);
+    }
     L.append(el('div', { class: 'title sub' }, 'Arrows', el('small', {}, 'reaction · width = share')), key);
   }
 
@@ -587,10 +595,10 @@ class App {
       const keep = list.find(x => sys && shortEnergy(x) === shortEnergy(sys)) ?? list[0];
       this.setFySys(keep.id);
     });
-    P.append(el('div', { class: 'field' }, el('span', {}, 'Fissioning system'), el('div', { class: 'row' }, tSel), eSeg));
+    P.append(el('div', { class: 'field' }, el('span', {}, 'Fissioning system', q('fission-systems')), el('div', { class: 'row' }, tSel), eSeg));
 
     const kSeg = segment([['cum', 'Cumulative'], ['ind', 'Independent']], s.fyKind, v => { s.fyKind = v as 'cum' | 'ind'; this.afterFyChange(); });
-    P.append(el('div', { class: 'field' }, el('span', {}, 'Yield'), kSeg));
+    P.append(el('div', { class: 'field' }, el('span', {}, 'Yield', q('fission-yields')), kSeg));
 
     const out = el('output', {}, fmtPct(10 ** s.fyThr));
     const range = el('input', { type: 'range', min: -10, max: -1, step: 0.05, value: s.fyThr }) as HTMLInputElement;
@@ -605,7 +613,7 @@ class App {
     P.append(el('div', { class: 'field' }, el('span', {}, 'Minimum yield'), el('div', { class: 'slider' }, range, out), fSeg));
     P.append(el('div', { class: 'stat', id: 'fyStat' }));
     P.append(el('ul', { class: 'list', id: 'fyList' }));
-    const btn = el('button', { class: 'btn' }, svgIcon('M4 16c3-9 6-9 12-12'), 'Decay fission products');
+    const btn = el('button', { class: 'btn', title: 'Simulate the decay of one fission\'s products' }, svgIcon('M4 16c3-9 6-9 12-12'), 'Decay fission products');
     btn.addEventListener('click', () => this.openPulse());
     P.append(btn);
     this.updateFyStats(P);
@@ -697,7 +705,7 @@ class App {
       pt.append(b);
     }
     const tgtLabel = s.actIso ? this.ds.byId(s.actIso) : null;
-    const head = el('div', { class: 'field' }, el('span', {}, 'Target'));
+    const head = el('div', { class: 'field' }, el('span', {}, 'Target', q('reactions')));
     if (tgtLabel) {
       const chip = el('span', { class: 'chip' }, label(tgtLabel), ' ×');
       chip.addEventListener('click', () => { s.actIso = null; s.actZ = tgtLabel.z; this.afterActChange(); });
@@ -706,16 +714,16 @@ class App {
     head.append(pt);
     P.append(head);
     const spSeg = segment(SPECTRA.map((l, i) => [String(i), l] as [string, string]), String(s.actSp), v => { s.actSp = +v as Spectrum; this.afterActChange(); });
-    P.append(el('div', { class: 'field' }, el('span', {}, 'Neutrons'), spSeg));
+    P.append(el('div', { class: 'field' }, el('span', {}, 'Neutrons', q('spectra')), spSeg));
     const list = el('ul', { class: 'list' });
     const prods = this.actResult?.products ?? [];
     const tot = this.actTotal || 1;
-    if (prods.length) P.append(el('div', { class: 'stat' }, 'Share of production · total ', el('b', {}, `${fmtNum(this.actTotal, 3)} b`), ' per target atom'));
+    if (prods.length) P.append(el('div', { class: 'stat' }, el('span', { class: 'help-link', 'data-help': 'activation-share' }, 'Share of production'), ' · total ', el('b', {}, `${fmtNum(this.actTotal, 3)} b`), ' per target atom', q('cross-section')));
     for (const p of prods.slice(0, 16)) {
       const r = p.reactions[0];
       const sub = el('span', { class: 'sub' },
         `${r.target.id} `,
-        el('span', { style: `color:${REACTION_COLORS[r.label] ?? 'inherit'};font-weight:600` }, `(${r.label})`),
+        el('span', { class: 'help-link', 'data-help': reactionTopic(r.label), style: `color:${REACTION_COLORS[r.label] ?? 'inherit'};font-weight:600` }, `(${r.label})`),
         `${p.reactions.length > 1 ? ` +${p.reactions.length - 1}` : ''} · ${p.product.st ? 'stable' : shortHlText(p.product)}`);
       const share = p.weight / tot;
       list.append(this.listRow(p.product, sub, fmtPct(share), share, `${fmtNum(p.weight, 3)} b per target atom`));
@@ -758,9 +766,15 @@ class App {
 
     // Key properties
     const kv = el('dl', { class: 'kv' });
+    const PROP_HELP: Record<string, string> = {
+      'Half-life': 'half-life', 'Jπ': 'spin-parity', Abundance: 'abundance', 'Mass excess': 'mass-excess', 'B/A': 'binding',
+      'Q(β⁻)': 'q-value', 'Q(EC)': 'q-value', 'Q(α)': 'q-value', 'S(n)': 'separation', 'S(p)': 'separation',
+      'Charge radius': 'charge-radius', 'μ': 'magnetic-moment', Q: 'quadrupole', Discovered: 'discovery',
+    };
     const add = (k: string, v: string | null | undefined, small?: string) => {
       if (v == null) return;
-      kv.append(el('dt', {}, k), el('dd', {}, v, small ? el('small', {}, ` ${small}`) : null));
+      const h = PROP_HELP[k];
+      kv.append(el('dt', h ? { class: 'help-link', 'data-help': h, title: `What is ${k}?` } : {}, k), el('dd', {}, v, small ? el('small', {}, ` ${small}`) : null));
     };
     add('Half-life', nu.st ? 'Stable' : nu.hlt);
     add('Jπ', nu.jp);
@@ -784,9 +798,9 @@ class App {
       for (const b of nu.branches) {
         const target = b.target ? this.chip(b.target) : el('span', { class: 'stat' }, b.family === 'SF' || b.mode.endsWith('SF') ? 'fission' : b.offChart ? 'off chart' : '—');
         const p = b.pct != null ? `${fmtNum(b.pct, 4)} %${b.unc ? ` ± ${fmtNum(b.unc, 2)}` : ''}` : '?';
-        dec.append(el('div', { class: 'd' }, el('span', { class: 'm', style: `color:${css(familyColor(b.family, this.dark))}` }, prettyMode(b.mode)), target, el('span', { class: 'p' }, p)));
+        dec.append(el('div', { class: 'd' }, el('span', { class: 'm help-link', 'data-help': decayTopic(b.mode, b.family, b.delayed), title: 'What is this decay mode?', style: `color:${css(familyColor(b.family, this.dark))}` }, prettyMode(b.mode)), target, el('span', { class: 'p' }, p)));
       }
-      body.append(el('section', {}, el('h4', {}, 'Decay'), dec));
+      body.append(el('section', {}, el('h4', {}, el('span', {}, 'Decay', q('decay-modes'))), dec));
 
       const ch = decayChain(nu);
       const path = mainPath(ch);
@@ -798,7 +812,7 @@ class App {
       const ends = ch.ends.filter(e => e.prob > 1e-4);
       const endsEl = el('div', { class: 'path', style: 'margin-top:8px' });
       if (ends.length > 1) for (const e of ends.slice(0, 6)) endsEl.append(this.chip(e.nuclide), el('span', { class: 'arr' }, pctShort(e.prob)));
-      body.append(el('section', {}, el('h4', {}, 'Chain', el('span', {}, `${ch.nodes.length} nuclides`)), pe, ends.length > 1 ? endsEl : null));
+      body.append(el('section', {}, el('h4', {}, el('span', {}, 'Chain', q('decay-chain')), el('span', {}, `${ch.nodes.length} nuclides`)), pe, ends.length > 1 ? endsEl : null));
     }
 
     // Fission yield
@@ -809,7 +823,7 @@ class App {
         const kv2 = el('dl', { class: 'kv' });
         kv2.append(el('dt', {}, 'Independent'), el('dd', {}, ind ? fmtPct(ind[0]) : '—'));
         kv2.append(el('dt', {}, 'Cumulative'), el('dd', {}, cum ? fmtPct(cum[0]) : '—'));
-        body.append(el('section', {}, el('h4', {}, 'Fission yield', el('span', {}, `${this.fySystem.target} ${shortEnergy(this.fySystem)}`)), kv2));
+        body.append(el('section', {}, el('h4', {}, el('span', {}, 'Fission yield', q('fission-yields')), el('span', {}, `${this.fySystem.target} ${shortEnergy(this.fySystem)}`)), kv2));
       }
     }
 
@@ -822,11 +836,11 @@ class App {
         const t = el('table', { class: 'rx' });
         t.append(el('tr', {}, el('th', {}, 'σ (b)'), el('th', {}, 'Thermal'), el('th', {}, 'Fission'), el('th', {}, '14 MeV')));
         for (const r of rx.slice(0, 8)) {
-          const first = el('td', {}, el('span', { style: `color:${REACTION_COLORS[r.label] ?? 'inherit'};font-weight:600` }, `(${r.label}) `));
+          const first = el('td', {}, el('span', { class: 'help-link', 'data-help': reactionTopic(r.label), title: `What is (${r.label})?`, style: `color:${REACTION_COLORS[r.label] ?? 'inherit'};font-weight:600` }, `(${r.label})`), ' ');
           if (r.product) first.append(this.chip(r.product));
           t.append(el('tr', {}, first, ...r.sig.map(v => el('td', { class: v ? '' : 'z' }, v ? fmtNum(v, 3) : '—'))));
         }
-        body.append(el('section', {}, el('h4', {}, 'Neutron reactions'), t));
+        body.append(el('section', {}, el('h4', {}, el('span', {}, 'Neutron reactions', q('reactions')), el('span', { class: 'help-link', 'data-help': 'spectra' }, 'energies?')), t));
       }
     }
 
@@ -868,7 +882,8 @@ class App {
 
   // -------------------------------------------------------------- search
   search(q: string): Nuclide[] {
-    q = q.trim().toLowerCase().replace(/\s+/g, ' ');
+    const raw = q.trim();
+    q = raw.toLowerCase().replace(/\s+/g, ' ');
     if (!q) return [];
     const ds = this.ds;
     const elIdx = (t: string) => {
@@ -885,7 +900,12 @@ class App {
     if (m) { sym = m[1]; a = +m[2]; } else if ((m = q.match(/^(\d+)[\s-]*([a-z]+)$/))) { a = +m[1]; sym = m[2]; }
     if (sym != null && a != null) {
       const z = elIdx(sym);
-      if (z >= 0) {
+      // "n" is both the neutron and nitrogen (N): capital N, or a mass with no free-neutron
+      // cluster (A > 6), means nitrogen.
+      let zz = z;
+      if (z === 0 && (/^\d*[\s-]*N/.test(raw) || !ds.get(0, a))) zz = 7;
+      if (zz >= 0) {
+        const z = zz;
         const hit = ds.get(z, a - z);
         const near = ds.nuclides.filter(n => n.z === z && n !== hit).sort((x, y) => Math.abs(x.a - a!) - Math.abs(y.a - a!)).slice(0, 7);
         return hit ? [hit, ...near] : near;
@@ -895,7 +915,7 @@ class App {
       const A = +m[0];
       return ds.nuclides.filter(n => n.a === A).sort((x, y) => (y.hl ?? 1e40) - (x.hl ?? 1e40) || x.z - y.z).slice(0, 12);
     }
-    const z = elIdx(q);
+    const z = raw === 'N' ? 7 : elIdx(q);
     if (z >= 0) {
       return ds.nuclides.filter(n => n.z === z).sort((x, y) => Number(y.st) - Number(x.st) || (y.ab ?? 0) - (x.ab ?? 0) || (y.hl ?? 0) - (x.hl ?? 0)).slice(0, 12);
     }
@@ -957,6 +977,22 @@ class App {
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     });
     $('#btnInfo').addEventListener('click', () => this.showInfo());
+    $('#btnHelp').addEventListener('click', () => this.help.open());
+    // Anything marked data-help opens that help topic (capture phase, so it wins over row clicks).
+    document.addEventListener('click', e => {
+      const t = (e.target as Element | null)?.closest?.('[data-help]') as HTMLElement | null;
+      if (!t) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (!$('#info').hidden) $('#info').hidden = true;
+      this.help.open(t.dataset.help);
+    }, true);
+    // Mode tabs explain themselves on hover.
+    const tips: Record<string, string> = {
+      explore: 'Explore (1): hover to see details', chart: 'Decay (2): hover to preview chains, click to lock',
+      fy: 'Fission (3): fission product yields', act: 'Activation (4): what neutrons turn things into',
+    };
+    document.querySelectorAll<HTMLButtonElement>('#modeSeg button').forEach(b => { b.title = tips[b.dataset.mode!] ?? ''; });
     $('#info').addEventListener('pointerdown', e => { if (e.target === $('#info') || (e.target as HTMLElement).closest('[data-close]')) $('#info').hidden = true; });
 
     // Minimap navigation
@@ -979,6 +1015,8 @@ class App {
         return;
       }
       if (t.matches('input, select, textarea')) return;
+      if (e.key === '?' || e.key === 'h') { e.preventDefault(); if (this.help.isOpen) this.help.close(); else this.help.open(); return; }
+      if (this.help.isOpen) return;
       if (e.key === '/' ) { e.preventDefault(); input.focus(); return; }
       if (this.sim.isOpen) return;
       if (e.key === '0') this.chart.fit();
@@ -1008,6 +1046,45 @@ class App {
     window.addEventListener('hashchange', () => this.fromHash());
   }
 
+  /** Run a "Try it" example from the help panel. */
+  private async runExample(ex: Example) {
+    const find = (id: string) => this.search(id).find(n => n.id === id) ?? null;
+    if (ex.kind === 'nuclide' || ex.kind === 'sim') {
+      const nu = find(ex.id);
+      if (!nu) return;
+      if (this.state.mode === 'act' || this.state.mode === 'fy') await this.setMode('chart');
+      this.pin(nu, true);
+      if (ex.kind === 'sim') this.openChainSim(nu);
+    } else if (ex.kind === 'act') {
+      const s = this.state;
+      s.actSp = ex.sp;
+      if (ex.target.includes('-')) {
+        const nu = find(ex.target);
+        if (!nu) return;
+        s.actIso = `${nu.z},${nu.n}`; s.actZ = nu.z;
+      } else {
+        s.actZ = this.ds.meta.elements.indexOf(ex.target); s.actIso = null;
+      }
+      this.pin(null);
+      if (s.mode !== 'act') await this.setMode('act');
+      this.afterActChange();
+    } else if (ex.kind === 'fy') {
+      this.pin(null);
+      if (this.state.mode !== 'fy') await this.setMode('fy');
+      await this.setFySys(ex.sys);
+    } else if (ex.kind === 'color') {
+      this.state.color = ex.mode;
+      if (ex.mode === 'fy') await this.ensureFy();
+      if (ex.mode === 'act') await this.ensureAct();
+      ($('#colorBy') as HTMLSelectElement).value = ex.mode;
+      this.catOff.clear();
+      this.saveState();
+      this.recolor();
+    } else if (ex.kind === 'mode') {
+      await this.setMode(ex.mode);
+    }
+  }
+
   /** Theme, palette or magic-line change from the appearance popover. */
   private onLook(what: 'theme' | 'colors' | 'magic') {
     if (!this.chart) return;
@@ -1024,6 +1101,7 @@ class App {
    */
   escape() {
     this.tip.hidden = true;
+    if (this.help.isOpen) { this.help.close(); return; }
     if (this.look.isOpen) { this.look.close(); return; }
     if (!$('#info').hidden) { $('#info').hidden = true; return; }
     if (this.sim.isOpen) { this.sim.close(); return; }
@@ -1075,7 +1153,7 @@ class App {
 
     B.append(el('h4', {}, 'Keys'));
     const keys = el('div', { class: 'keys' });
-    for (const [k, v] of [['/', 'Search'], ['1 2 3 4', 'Explore · Decay · Fission · Activation'], ['Click', 'Lock chain & details'], ['Click empty', 'Unlock'], ['Shift + scroll', 'Travel along the valley of stability'], ['← ↑ → ↓', 'Step between neighbours'], ['s', 'Simulate decay'], ['0', 'Fit'], ['+ −', 'Zoom'], ['t', 'Next theme'], ['Esc', 'Back out one level'], ['Shift-click legend', 'Solo category']]) {
+    for (const [k, v] of [['/', 'Search'], ['1 2 3 4', 'Explore · Decay · Fission · Activation'], ['Click', 'Lock chain & details'], ['Click empty', 'Unlock'], ['Shift + scroll', 'Travel along the valley of stability'], ['← ↑ → ↓', 'Step between neighbours'], ['s', 'Simulate decay'], ['0', 'Fit'], ['+ −', 'Zoom'], ['t', 'Next theme'], ['Esc', 'Back out one level'], ['Shift-click legend', 'Solo category'], ['? or h', 'Help']]) {
       keys.append(el('kbd', {}, k), el('span', {}, v));
     }
     B.append(keys);
@@ -1084,6 +1162,11 @@ class App {
 }
 
 // ---------------------------------------------------------------- helpers
+/** A small "?" that opens a help topic. */
+function q(topic: string) {
+  return el('button', { class: 'qbtn', 'data-help': topic, title: 'What does this mean?' }, '?');
+}
+
 function segment(opts: [string, string][], value: string, on: (v: string) => void) {
   const seg = el('div', { class: 'seg small full' });
   for (const [v, l] of opts) {

@@ -8,6 +8,7 @@ An interactive, canvas-rendered chart of the nuclides for exploration. It covers
 - **Activation**: choose an element (natural isotopic mix) or a single isotope, and a neutron spectrum: thermal, U-235 fission spectrum, or 14 MeV. The chart shows every (n,γ), (n,2n), (n,p), (n,α)… product, weighted by abundance × σ.
 - **Color by**: decay mode, half-life, Q-values, binding energy, mass excess, separation energies, spin, parity, moments, charge radius, N/Z, abundance, discovery year, fission yield or activation production. Click legend entries to toggle them; shift-click to solo one.
 - **Simulate decay**: an analytic Bateman solution, run in a Web Worker and plotted on log-log axes.
+- **Help** (`?` button or the `?` / `h` key): 47 short topics on using the chart, decay modes, every neutron reaction, fission and nuclear properties. Each has "Try it" examples that set up the chart and links to Wikipedia. Labels with a dotted underline or a small `?` anywhere in the app open the matching topic.
 - **Themes and colors** (palette button): 9 UI themes, 7 decay-mode palettes (including a colorblind-safe one), and selectable sequential and diverging gradients.
 
 ## Data sources
