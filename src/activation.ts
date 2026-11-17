@@ -2,6 +2,12 @@
 import type { Dataset, Nuclide } from './data';
 
 export type Spectrum = 0 | 1 | 2; // thermal, fission, 14 MeV
+
+/** Arrow and label colors for each reaction. */
+export const REACTION_COLORS: Record<string, string> = {
+  'n,γ': '#6aa8ff', 'n,2n': '#f5c73b', 'n,3n': '#f39237', 'n,p': '#e8577e', 'n,d': '#ff7ab8', 'n,np': '#ff7ab8',
+  'n,t': '#a07ae0', 'n,³He': '#2ec4c4', 'n,α': '#3fbf73', 'n,nα': '#9fd356',
+};
 export const SPECTRA = ['Thermal', 'Fission', '14 MeV'];
 
 export interface ActData {

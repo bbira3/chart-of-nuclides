@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "data": "python scripts/build_data.py",
+    "data:xs": "python scripts/build_xs.py",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",

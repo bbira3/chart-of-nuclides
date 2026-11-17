@@ -8,7 +8,8 @@ An interactive, canvas-rendered chart of the nuclides for exploration. It covers
 - **Activation**: choose an element (natural isotopic mix) or a single isotope, and a neutron spectrum: thermal, U-235 fission spectrum, or 14 MeV. The chart shows every (n,γ), (n,2n), (n,p), (n,α)… product, weighted by abundance × σ.
 - **Color by**: decay mode, half-life, Q-values, binding energy, mass excess, separation energies, spin, parity, moments, charge radius, N/Z, abundance, discovery year, fission yield or activation production. Click legend entries to toggle them; shift-click to solo one.
 - **Simulate decay**: an analytic Bateman solution, run in a Web Worker and plotted on log-log axes.
-- **Help** (`?` button or the `?` / `h` key): 47 short topics on using the chart, decay modes, every neutron reaction, fission and nuclear properties. Each has "Try it" examples that set up the chart and links to Wikipedia. Labels with a dotted underline or a small `?` anywhere in the app open the matching topic.
+- **Cross sections vs energy**: from the details panel of any of the 535 ENDF/B-VIII.0 targets, a σ(E) plot of every reaction from 10 µeV to 20 MeV. Scroll to zoom into resonances, drag to pan, hover to read values. Each target's file loads only when its plot is opened.
+- **Help** (`?` button or the `?` / `h` key): 53 short topics on using the chart, decay modes, every neutron reaction, fission and nuclear properties. Each has "Try it" examples that set up the chart and links to Wikipedia. Hovering a label or a small `?` anywhere in the app shows a short explanation; clicking opens the full topic.
 - **Themes and colors** (palette button): 9 UI themes, 7 decay-mode palettes (including a colorblind-safe one), and selectable sequential and diverging gradients.
 
 ## Data sources
@@ -23,6 +24,7 @@ Notes on the processing (`scripts/`):
 - Delayed-particle branches (β⁻n, εp, …) are subtracted from their parent β⁻/ε branch when chains are built.
 - Isomers are not shown separately. Independent yields of isomeric states are summed into the ground state; cumulative yields use the ground-state value.
 - Thermal cross sections combine the MF=3 background with a single-level Breit–Wigner sum over the resolved resonances in MF=2, evaluated at 0.0253 eV. This reproduces the standard thermal values (Co-59 37.2 b, Au-197 98.7 b, Gd-157 253 kb) to within a few percent. Fission-spectrum values average MF=3 over a U-235 Watt spectrum, so (n,γ) values in that spectrum are approximate.
+- σ(E) plots (`scripts/build_xs.py`, `scripts/endf_xs.py`, needs numpy): resolved resonances are reconstructed with each evaluation's own formalism (SLBW, MLBW, Reich–Moore, or R-matrix limited in the Reich–Moore approximation with constant charged-particle widths) on an adaptive grid, added to the MF=3 background, and Doppler-broadened to 293.6 K with the exact free-gas kernel. Unresolved averages are added where LSSF=0, without width-fluctuation corrections. Spot checks at 293.6 K: U-238 6.67 eV capture peak 7.1 kb, thermal U-235 fission 587 b, Pu-239 fission 747 b.
 - Nuclides with an unknown half-life are treated as prompt (1 µs) in decay simulations.
 
 ## Running
@@ -36,6 +38,7 @@ To rebuild the data (downloads about 315 MB of raw ENDF files into `data/raw/`, 
 
 ```bash
 npm run data       # python scripts/build_data.py [--refresh]
+npm run data:xs    # python scripts/build_xs.py  (σ(E) files, needs numpy, ~10 min)
 ```
 
 `npm run build` produces a static site in `dist/`.

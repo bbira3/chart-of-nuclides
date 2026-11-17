@@ -83,6 +83,22 @@
       </div>
     </div>
 
+    <div id="xs" class="modal" hidden>
+      <div class="modal-card">
+        <header>
+          <h2 id="xsTitle">Cross sections</h2>
+          <button class="qbtn" data-help="xs-plot">?</button>
+          <div class="spacer"></div>
+          <button class="btn small" id="xsReset" hidden>Reset zoom</button>
+          <button class="icon" id="xsClose" title="Close (Esc)"><svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></svg></button>
+        </header>
+        <div class="sim-body">
+          <div class="sim-plot"><canvas id="xsCanvas"></canvas></div>
+          <div class="sim-side xs-side" id="xsSide"></div>
+        </div>
+      </div>
+    </div>
+
     <div id="help" class="modal" hidden>
       <div class="modal-card help-card">
         <header>

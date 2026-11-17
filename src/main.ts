@@ -6,8 +6,10 @@ import {
   type Coloring, type ContinuousMode, type ColorMode,
 } from './colors';
 import { Chart, type Overlay } from './chart';
-import { activate, loadActivation, naturalTargets, reactionsOn, SPECTRA, type ActData, type Spectrum } from './activation';
+import { activate, loadActivation, naturalTargets, REACTION_COLORS, reactionsOn, SPECTRA, type ActData, type Spectrum } from './activation';
 import { SimModal } from './ui/sim';
+import { XsPlot } from './ui/xsplot';
+import { loadXsIndex } from './xs';
 import { Appearance } from './ui/appearance';
 import { Help } from './ui/help';
 import { colorTopic, decayTopic, reactionTopic, type Example } from './helpContent';
@@ -34,10 +36,6 @@ const DEFAULTS: State = {
   actZ: 27, actIso: null, actSp: 0,
 };
 
-const REACTION_COLORS: Record<string, string> = {
-  'n,γ': '#6aa8ff', 'n,2n': '#f5c73b', 'n,3n': '#f39237', 'n,p': '#e8577e', 'n,d': '#ff7ab8', 'n,np': '#ff7ab8',
-  'n,t': '#a07ae0', 'n,³He': '#2ec4c4', 'n,α': '#3fbf73', 'n,nα': '#9fd356',
-};
 
 class App {
   ds!: Dataset;
@@ -53,10 +51,13 @@ class App {
   state: State = { ...DEFAULTS };
   catOff = new Set<string>();
   pinned: Nuclide | null = null;
+  /** Targets with σ(E) plots. */
+  xsIndex: Record<string, number[]> | null = null;
   listHover: Nuclide | null = null;
   /** Explore mode: the last nuclide hovered, shown in the details panel. */
   explored: Nuclide | null = null;
   sim = new SimModal();
+  xs = new XsPlot();
   look = new Appearance($('#btnTheme'));
   help = new Help();
   get dark() { return this.look.theme.dark; }
@@ -84,6 +85,8 @@ class App {
     this.chart.onViewChange = () => this.drawMiniViewport();
     this.chart.showMagic = this.look.look.magic;
     this.sim.onPick = nu => { this.sim.close(); this.pin(nu, true); };
+    this.xs.onPick = nu => { this.xs.close(); this.pin(nu, true); };
+    loadXsIndex().then(ix => { this.xsIndex = ix; if (this.detailNuclide) this.renderDetail(); });
 
     this.buildColorSelect();
     this.bindUi();
@@ -878,8 +881,11 @@ class App {
           if (r.product) first.append(this.chip(r.product));
           t.append(el('tr', {}, first, ...r.sig.map(v => el('td', { class: v ? '' : 'z' }, v ? fmtNum(v, 3) : '—'))));
         }
-        body.append(el('section', {}, el('h4', {}, el('span', {}, 'Neutron reactions', q('reactions')), el('span', {}, 'energies', q('spectra'))), t));
+        body.append(el('section', {}, el('h4', {}, el('span', {}, 'Neutron reactions', q('reactions')), el('span', {}, 'energies', q('spectra'))), t, this.xsButton(nu)));
       }
+    }
+    if (!hasRx && this.xsIndex?.[`${nu.z},${nu.n}`]) {
+      body.append(el('section', {}, el('h4', {}, el('span', {}, 'Neutron reactions', q('reactions'))), this.xsButton(nu)));
     }
 
     // Actions
@@ -903,6 +909,14 @@ class App {
     }
     if (actions.childNodes.length) D.append(actions);
     this.drawMiniViewport();
+  }
+
+  /** Opens the σ(E) plot; kept one click away so the detail panel stays calm. */
+  private xsButton(nu: Nuclide) {
+    const b = el('button', { class: 'linkbtn' },
+      svgIcon('M3 16V4M3 16h14M5 13c2 0 2.5-6 4-6s1.5 4 3 4 2-7 4-7'), 'Cross sections vs energy', el('span', { class: 'arr' }, '→'));
+    b.addEventListener('click', () => this.xs.open(this.ds, nu));
+    return b;
   }
 
   private chip(nu: Nuclide) {
@@ -1056,7 +1070,7 @@ class App {
       if (e.key === '?' || e.key === 'h') { e.preventDefault(); if (this.help.isOpen) this.help.close(); else this.help.open(); return; }
       if (this.help.isOpen) return;
       if (e.key === '/' ) { e.preventDefault(); input.focus(); return; }
-      if (this.sim.isOpen) return;
+      if (this.sim.isOpen || this.xs.isOpen) return;
       if (e.key === '0') this.chart.fit();
       else if (e.key === '+' || e.key === '=') this.chart.zoomBy(1.5);
       else if (e.key === '-') this.chart.zoomBy(1 / 1.5);
@@ -1093,6 +1107,11 @@ class App {
       if (this.state.mode === 'act' || this.state.mode === 'fy') await this.setMode('chart');
       this.pin(nu, true);
       if (ex.kind === 'sim') this.openChainSim(nu);
+    } else if (ex.kind === 'xs') {
+      const nu = find(ex.id);
+      if (!nu) return;
+      this.pin(nu, true);
+      this.xs.open(this.ds, nu);
     } else if (ex.kind === 'act') {
       const s = this.state;
       s.actSp = ex.sp;
@@ -1131,6 +1150,7 @@ class App {
     this.recolor();
     this.renderDetail();
     if (this.sim.isOpen) this.sim.redraw();
+    if (this.xs.isOpen) this.xs.redraw();
   }
 
   /**
@@ -1143,6 +1163,7 @@ class App {
     if (this.look.isOpen) { this.look.close(); return; }
     if (!$('#info').hidden) { $('#info').hidden = true; return; }
     if (this.sim.isOpen) { this.sim.close(); return; }
+    if (this.xs.isOpen) { this.xs.close(); return; }
     if (this.pinned) { this.pin(null); return; }
     if (this.catOff.size) { this.catOff.clear(); this.renderLegend(); this.refocus(); return; }
     if (this.state.mode !== 'explore') { this.setMode('explore'); return; }
@@ -1176,6 +1197,11 @@ class App {
         'Fission-spectrum values average the tabulated cross sections over a U-235 Watt spectrum. Resonance contributions are left out, so (n,γ) values there are underestimates; threshold reactions are fine.',
         'Production weight = abundance × σ (barns per target atom). It is a relative production rate: no flux, irradiation time or self-shielding.',
         'First-generation reactions only. Products are shown as ground states (no isomer split, no further captures).',
+      ]],
+      ['Cross-section plots', [
+        'Resolved resonances are rebuilt from the ENDF parameters with the formalism each evaluation uses (Breit–Wigner, Reich–Moore, R-matrix limited) and Doppler-broadened to 293.6 K. R-matrix charged-particle channels use constant widths.',
+        'Where an evaluation asks for unresolved-resonance averages to be added, they are computed without width-fluctuation corrections, so capture there can read 10–30% high.',
+        'Curves are thinned to about 1% for drawing.',
       ]],
       ['Decay simulation', [
         'Exact Bateman solution for the chain shown. Nuclides with an unknown half-life are treated as decaying in 1 µs.',

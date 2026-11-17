@@ -6,6 +6,7 @@ export type Example =
   | { kind: 'act'; target: string; sp: 0 | 1 | 2; label: string }
   | { kind: 'fy'; sys: string; label: string }
   | { kind: 'sim'; id: string; label: string }
+  | { kind: 'xs'; id: string; label: string }
   | { kind: 'color'; mode: string; label: string }
   | { kind: 'mode'; mode: 'explore' | 'chart' | 'fy' | 'act'; label: string };
 
@@ -331,8 +332,84 @@ export const TOPICS: Topic[] = [
       'A cross section measures how likely a reaction is, expressed as an effective target area. One barn is 10⁻²⁴ cm², roughly the size of a uranium nucleus ("as big as a barn" to the physicists who named it).',
       'Reactions per second per atom = cross section × neutron flux. Values range from microbarns to millions of barns.',
     ],
+    examples: [{ kind: 'xs', id: 'Au-197', label: 'Plot σ(E) for Au-197' }],
     links: [['Neutron cross section', W('Neutron_cross_section')], ['Barn (unit)', W('Barn_(unit)')], ['Neutron flux', W('Neutron_flux')]],
     keywords: 'barn sigma probability',
+  },
+  {
+    id: 'xs-plot', group: 'Neutron reactions', title: 'Cross-section plots σ(E)',
+    body: [
+      'How likely each reaction is at each neutron energy, from 10 µeV to 20 MeV on log–log axes. Scroll to zoom, drag to pan, double-click to reset. Hover to read every curve at one energy; click a legend row to show or hide it.',
+      'Low energies: capture usually falls as 1/v, a straight line sloping down, because a slower neutron spends longer near the nucleus.',
+      'Middle: resonances, sharp peaks where the neutron energy matches an excited state of the compound nucleus. Higher up they crowd together and are shown as smooth averages (the "unresolved" band).',
+      'Fast: above about 1 MeV the curves are smooth, and threshold reactions such as (n,2n), (n,p) and (n,α) switch on once the neutron brings enough energy.',
+      'Data from ENDF/B-VIII.0. Resonances are rebuilt from their parameters here and Doppler-broadened to room temperature (293.6 K), so treat fine details as approximate.',
+    ],
+    chart: 'Shaded humps along the bottom show where thermal and fission neutrons sit; dashed lines mark 0.0253 eV and 14 MeV. These match the three energy options in Activation mode.',
+    examples: [
+      { kind: 'xs', id: 'U-238', label: 'U-238 capture resonances' },
+      { kind: 'xs', id: 'U-235', label: 'U-235 fission' },
+      { kind: 'xs', id: 'B-10', label: 'B-10: clean 1/v' },
+      { kind: 'xs', id: 'Fe-56', label: 'Fe-56: wide resonances' },
+    ],
+    links: [['Neutron cross section', W('Neutron_cross_section')], ['Neutron temperature', W('Neutron_temperature')], ['ENDF', W('Evaluated_Nuclear_Data_File')]],
+    keywords: 'sigma energy plot graph 1/v resonance threshold',
+  },
+  {
+    id: 'resonance', group: 'Neutron reactions', title: 'Resonances',
+    body: [
+      "A neutron joining a nucleus forms a compound nucleus carrying the neutron's binding energy plus its kinetic energy. When that total lands on one of the compound nucleus's excited states, the reaction becomes far more likely: a sharp peak.",
+      "Each peak has a Breit–Wigner shape set by the state's energy and how fast it decays by each route (neutron, gamma, fission). Heavy nuclei have many closely spaced states, so their resonances start at a few eV. Light and magic nuclei have few, widely spaced ones.",
+      "Thermal motion of the target atoms smears the peaks (Doppler broadening). Hotter fuel captures more neutrons in U-238's resonances, which helps keep reactors stable.",
+    ],
+    examples: [
+      { kind: 'xs', id: 'U-238', label: 'U-238: dense resonances' },
+      { kind: 'xs', id: 'Pb-208', label: 'Pb-208: few, far apart' },
+    ],
+    links: [['Compound nucleus', W('Compound_nucleus')], ['Breit–Wigner distribution', W('Breit%E2%80%93Wigner_distribution')], ['Doppler broadening', W('Doppler_broadening')], ['Resonance escape probability', W('Resonance_escape_probability')]],
+    keywords: 'resonance peak compound breit wigner doppler resolved unresolved',
+  },
+  {
+    id: 'rx-elastic', group: 'Neutron reactions', title: '(n,n) elastic scattering', move: 'no change · same nucleus',
+    body: [
+      'The neutron bounces off and the nucleus is left as it was, apart from its recoil. Nothing is transmuted, so elastic scattering never activates anything.',
+      "It is how moderators work: each collision with a light nucleus such as hydrogen or carbon takes a large share of the neutron's energy, slowing fission neutrons to thermal speeds.",
+    ],
+    examples: [{ kind: 'xs', id: 'C-12', label: 'C-12, a graphite moderator' }],
+    links: [['Elastic scattering', W('Elastic_scattering')], ['Neutron moderator', W('Neutron_moderator')], ['Neutron scattering', W('Neutron_scattering')]],
+    keywords: 'elastic scattering moderator n,n',
+  },
+  {
+    id: 'rx-inelastic', group: 'Neutron reactions', title: '(n,n′) inelastic scattering', move: 'no change · nucleus left excited',
+    body: [
+      'The neutron scatters but leaves the nucleus in an excited state, which then emits a gamma ray. The neutron loses at least that excitation energy, so this starts above a threshold, typically 0.1–1 MeV.',
+      'It is the main way fast neutrons slow down in heavy materials such as iron and uranium.',
+    ],
+    examples: [{ kind: 'xs', id: 'Fe-56', label: 'Fe-56' }],
+    links: [['Inelastic scattering', W('Inelastic_scattering')], ['Neutron scattering', W('Neutron_scattering')]],
+    keywords: 'inelastic n,n′ excited',
+  },
+  {
+    id: 'rx-fission', group: 'Neutron reactions', title: '(n,f) neutron-induced fission', move: 'splits into two lighter nuclei',
+    body: [
+      'The nucleus splits into two fragments, releasing about 200 MeV and two or three new neutrons. Fissile nuclei such as U-235 and Pu-239 fission with slow neutrons; U-238 and Th-232 need fast neutrons above about 1 MeV.',
+      'Where the fragments land on the chart is shown in Fission mode.',
+    ],
+    examples: [
+      { kind: 'xs', id: 'U-235', label: 'U-235: fissile' },
+      { kind: 'xs', id: 'U-238', label: 'U-238: fast only' },
+      { kind: 'mode', mode: 'fy', label: 'Fission yields' },
+    ],
+    links: [['Nuclear fission', W('Nuclear_fission')], ['Fissile material', W('Fissile_material')]],
+    keywords: 'fission n,f fissile',
+  },
+  {
+    id: 'rx-total', group: 'Neutron reactions', title: 'Total cross section',
+    body: [
+      'The sum of every reaction at that energy: elastic, inelastic, capture, fission and the rest. It is what a beam "sees": a thin sample lets through a fraction e^(−nσx) of the neutrons, which is how the total is measured.',
+    ],
+    links: [['Neutron cross section', W('Neutron_cross_section')]],
+    keywords: 'total transmission',
   },
   {
     id: 'activation-share', group: 'Neutron reactions', title: 'Share of activation',
